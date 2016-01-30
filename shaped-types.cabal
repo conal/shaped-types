@@ -1,0 +1,34 @@
+Name:                shaped-types
+Version:             0.0.0
+Cabal-Version:       >= 1.6
+Synopsis:            
+Category:            
+Description:
+  What's it about?
+Author:              Conal Elliott
+Maintainer:          conal@conal.net
+Copyright:           (c) 2016 by Conal Elliott
+License:             BSD3
+License-File:        COPYING
+Stability:           experimental
+build-type:          Simple
+
+source-repository head
+  type:     git
+  location: git://github.com/conal/shaped-types.git
+
+Library
+  hs-Source-Dirs:      src
+  Extensions:
+  Build-Depends:       base<5
+                     , ghc >= 7.10.3
+                     , hermit >= 1.0.0.1
+                     , type-unary
+                     , circat
+                     , lambda-ccc
+  Exposed-Modules:     
+                       ShapedTypes.Pair
+                       ShapedTypes.Vec
+                       ShapedTypes.RTree
+                       ShapedTypes.Interactive
+  ghc-options:         -Wall

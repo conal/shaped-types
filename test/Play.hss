@@ -1,0 +1,31 @@
+set-pp-renderer ascii
+set-pp-width 80
+
+set-pp-type Omit
+-- set-pp-type Show
+
+set-pp-coercion Omit
+-- set-pp-coercion Kind
+-- set-pp-coercion Show
+
+-- -- temp
+-- rhs-of 'foo
+
+try (any-td prog-bind-elim)
+
+try (any-td (abst-repr-case >>> any-td (repeat (let-float-case <+ case-float-case <+ case-reduce <+ cast-elim))))
+
+try (any-td abst-repr-con)
+
+try (any-bu prog-bind-elim)
+
+try simplify
+
+try unshadow
+
+prog
+
+---- 
+
+
+-- try (any-td (abst-repr-con <+ (abst-repr-case >>> any-td (repeat (let-float-case <+ case-float-case <+ case-reduce <+ cast-elim)))))
