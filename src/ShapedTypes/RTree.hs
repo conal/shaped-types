@@ -92,22 +92,22 @@ instance Traversable (Tree n) => Traversable (Tree (S n)) where
 
 type instance Rep (Tree Z a) = a
 instance HasRep (Tree Z a) where
-  repr (L a) = a
-  abst a = L a
+  repr = \ (L a) -> a
+  abst = L
 
 #if 1
 -- One step at a time:
 type instance Rep (Tree (S n) a) = Pair (Tree n a)
 instance HasRep (Tree (S n) a) where
-  repr (B ts) = ts
-  abst ts = B ts
+  repr = \ (B ts) -> ts
+  abst = B
 #else
 -- Two steps:
 type instance Rep (Tree (S n) a) = Rep (Pair (Tree n a)) -- *
 -- type instance Rep (Tree (S n) a) = (Tree n a , Tree n a)
 instance HasRep (Tree (S n) a) where
-  repr (B ts) = repr ts
-  abst ts = B (abst ts)
+  repr = \ (B ts) -> repr ts
+  abst = \ ts -> B (abst ts)
 #endif
 
 -- *
