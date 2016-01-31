@@ -50,46 +50,41 @@ data Vec :: * -> * -> * where
 -- deriving Typeable
 
 instance Functor (Vec Z) where
-  -- fmap _ ZVec     = ZVec
-  fmap = \ _ ZVec -> ZVec
+  fmap _ ZVec = ZVec
   {-# INLINE fmap #-}
 
 instance Functor (Vec n) => Functor (Vec (S n)) where
-  fmap = \ f (a :< u) -> f a :< fmap f u
+  fmap f (a :< u) = f a :< fmap f u
   {-# INLINE fmap #-}
 
 instance Applicative (Vec Z) where
-  pure = \ _ -> ZVec
+  pure _ = ZVec
   {-# INLINE pure #-}
-  -- ZVec <*> ZVec = ZVec
-  (<*>) = \ ZVec ZVec -> ZVec
+  ZVec <*> ZVec = ZVec
   {-# INLINE (<*>) #-}
 
 instance Applicative (Vec n) => Applicative (Vec (S n)) where
-  -- pure a = a :< pure a
-  pure = \ a -> a :< pure a
+  pure a = a :< pure a
   {-# INLINE pure  #-}
-  -- (f :< fs) <*> (a :< as) = f a :< (fs <*> as)
-  (<*>) = \ (f :< fs) (a :< as) -> f a :< (fs <*> as)
+  (f :< fs) <*> (a :< as) = f a :< (fs <*> as)
   {-# INLINE (<*>) #-}
 
 -- TODO: Monad
 
 instance Foldable (Vec Z) where
-  -- foldMap _ ZVec = mempty
-  foldMap = \ _ ZVec -> mempty
+  foldMap _ ZVec = mempty
   {-# INLINE foldMap #-}
 
 instance Foldable (Vec n) => Foldable (Vec (S n)) where
-  foldMap = \ h (a :< as) -> h a <> foldMap h as
+  foldMap h (a :< as) = h a <> foldMap h as
   {-# INLINE foldMap #-}
 
 instance Traversable (Vec Z) where
-  traverse = \ _ ZVec -> pure ZVec
+  traverse _ ZVec = pure ZVec
   {-# INLINE traverse #-}
 
 instance Traversable (Vec n) => Traversable (Vec (S n)) where
-  traverse = \ f (a :< as) -> liftA2 (:<) (f a) (traverse f as)
+  traverse f (a :< as) = liftA2 (:<) (f a) (traverse f as)
   {-# INLINE traverse #-}
 
 type instance Rep (Vec Z a) = ()
