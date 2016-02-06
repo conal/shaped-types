@@ -8,6 +8,8 @@ tags
 tarballs
 out/
 Unused/
+*.dump-*
+*.verbose-core2core
 
 test/Examples
 

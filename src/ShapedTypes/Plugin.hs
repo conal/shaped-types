@@ -13,21 +13,27 @@
 -- Maintainer  :  conal@conal.net
 -- Stability   :  experimental
 -- 
--- Interactive HERMIT-based plugin
+-- Non-interactive HERMIT-based plugin
 ----------------------------------------------------------------------
 
-module ShapedTypes.Interactive (plugin) where
+-- TODO: Move back to lambda-ccc when done
 
+module ShapedTypes.Plugin where
+
+-- TODO: explicit exports
+
+import Prelude hiding ((.))
+
+import Control.Category ((.))
 import GhcPlugins (Plugin)
-import HERMIT.Plugin (hermitPlugin,lastPass,interactive)
+import Language.KURE (tryR)
+import HERMIT.Kernel (CommitMsg(..))
+import HERMIT.Plugin
 
 import Monomorph.Plugin (tweakPretty)
-import qualified Monomorph.Stuff        as St
-import qualified LambdaCCC.Reify        as Re
-import qualified LambdaCCC.Monomorphize as Mo
+import LambdaCCC.Reify (reifyModule)
 
 plugin :: Plugin
-plugin = hermitPlugin ( lastPass
-                      . (tweakPretty >>)
-                      . interactive (Re.externals ++ Mo.externals ++ St.externals) )
-
+plugin = hermitPlugin (lastPass . const plug)  -- pass 0
+ where
+   plug = tweakPretty >> apply (Always "reify") (tryR reifyModule)

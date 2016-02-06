@@ -22,13 +22,20 @@ Library
   Extensions:
   Build-Depends:       base<5
                      , ghc >= 7.10.3
+                     , kure >= 2.16.0
                      , hermit >= 1.0.0.1
                      , type-unary
                      , circat
+                     , monomorph
                      , lambda-ccc
+
+-- TODO: drop monomorph
+
   Exposed-Modules:     
                        ShapedTypes.Pair
+                       ShapedTypes.Nat
                        ShapedTypes.Vec
                        ShapedTypes.RTree
                        ShapedTypes.Interactive
+                       ShapedTypes.Plugin
   ghc-options:         -Wall

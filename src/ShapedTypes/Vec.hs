@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE ConstraintKinds    #-}
+{-# LANGUAGE DataKinds          #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveFunctor      #-}
@@ -12,7 +13,7 @@
 {-# LANGUAGE TypeFamilies       #-}
 {-# LANGUAGE TypeOperators      #-}
 
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -29,63 +30,80 @@
 -- Length-typed lists/vectors
 ----------------------------------------------------------------------
 
-module ShapedTypes.Vec where
+{-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-uniques -dsuppress-coercions #-}
 
--- TODO: explicit exports
+module ShapedTypes.Vec where
 
 import Data.Monoid ((<>))
 import Control.Applicative (liftA2)
 
 import Circat.Rep
 
-import TypeUnary.TyNat
+-- import TypeUnary.TyNat
+import ShapedTypes.Nat
+
+#define SPEC(cls,n) {-# SPECIALISE instance cls (Vec n) #-}
+
+#define SPECS(cls) \
+  SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
+--   SPEC(cls,N5); SPEC(cls,N6); SPEC(cls,N7); SPEC(cls,N8)
+
+-- The more specializations we declare here, the more time it takes to compile
+-- this library code *and* the less time it takes to compile client code. We
+-- thus probably want to comment out all or some of the `SPEC`s in `SPECS` while
+-- developing.
 
 infixr 5 :<
 
 -- | Vectors with type-determined length, having empty vector ('ZVec') and
 -- vector cons ('(:<)').
-data Vec :: * -> * -> * where
+data Vec :: Nat -> * -> * where
   ZVec :: Vec Z a 
   (:<) :: a -> Vec n a -> Vec (S n) a
 -- deriving Typeable
 
 instance Functor (Vec Z) where
   fmap _ ZVec = ZVec
-  {-# INLINE fmap #-}
+  {-# INLINABLE fmap #-}
 
 instance Functor (Vec n) => Functor (Vec (S n)) where
   fmap f (a :< u) = f a :< fmap f u
-  {-# INLINE fmap #-}
+  {-# INLINABLE fmap #-}
+  SPECS(Functor)
 
 instance Applicative (Vec Z) where
   pure _ = ZVec
-  {-# INLINE pure #-}
   ZVec <*> ZVec = ZVec
-  {-# INLINE (<*>) #-}
+  {-# INLINABLE pure #-}
+  {-# INLINABLE (<*>) #-}
 
 instance Applicative (Vec n) => Applicative (Vec (S n)) where
   pure a = a :< pure a
-  {-# INLINE pure  #-}
   (f :< fs) <*> (a :< as) = f a :< (fs <*> as)
-  {-# INLINE (<*>) #-}
+  {-# INLINABLE pure  #-}
+  {-# INLINABLE (<*>) #-}
+  SPECS(Applicative)
 
 -- TODO: Monad
 
 instance Foldable (Vec Z) where
   foldMap _ ZVec = mempty
-  {-# INLINE foldMap #-}
+  {-# INLINABLE foldMap #-}
 
 instance Foldable (Vec n) => Foldable (Vec (S n)) where
   foldMap h (a :< as) = h a <> foldMap h as
-  {-# INLINE foldMap #-}
+  {-# INLINABLE foldMap #-}
+  SPECS(Foldable)
 
 instance Traversable (Vec Z) where
   traverse _ ZVec = pure ZVec
-  {-# INLINE traverse #-}
+  {-# INLINABLE traverse #-}
 
 instance Traversable (Vec n) => Traversable (Vec (S n)) where
   traverse f (a :< as) = liftA2 (:<) (f a) (traverse f as)
-  {-# INLINE traverse #-}
+  {-# INLINABLE traverse #-}
+  SPECS(Traversable)
+
 
 type instance Rep (Vec Z a) = ()
 instance HasRep (Vec Z a) where

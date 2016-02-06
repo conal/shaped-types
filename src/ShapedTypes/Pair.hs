@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE TypeFamilies      #-}
@@ -18,6 +19,10 @@
 -- 
 -- Some data types for specializing
 ----------------------------------------------------------------------
+
+-- {-# OPTIONS_GHC -fplugin=ShapedTypes.Plugin -fobject-code #-}
+
+-- {-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-uniques -dsuppress-coercions -dverbose-core2core #-}
 
 module ShapedTypes.Pair (Pair(..)) where
 

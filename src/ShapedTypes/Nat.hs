@@ -63,11 +63,12 @@ type instance a ^   Z = S Z
 type instance a ^ S b = a * (a ^ b)
 
 
+type N0  = Z
+
 -- Generated code
 -- 
 --   putStrLn $ unlines ["type N" ++ show (n+1) ++ " = S N" ++ show n | n <- [0..31]]
 
-type N0  = Z
 type N1  = S N0
 type N2  = S N1
 type N3  = S N2
