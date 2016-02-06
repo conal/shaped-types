@@ -1,1 +1,1 @@
-Experimenting with statically shaped types and GHC specialization
+Experimenting with statically shaped types, GHC specialization, and reification

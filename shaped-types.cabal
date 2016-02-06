@@ -1,10 +1,10 @@
 Name:                shaped-types
 Version:             0.0.0
 Cabal-Version:       >= 1.6
-Synopsis:            
-Category:            
+Synopsis:            Statically shaped types
+Category:            data
 Description:
-  What's it about?
+  Experimenting with statically shaped types, GHC specialization, and reification
 Author:              Conal Elliott
 Maintainer:          conal@conal.net
 Copyright:           (c) 2016 by Conal Elliott
