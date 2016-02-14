@@ -1,8 +1,10 @@
-{-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE GADTs, DataKinds, FlexibleContexts #-}
+
+{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 {-# OPTIONS_GHC -fno-warn-unused-binds #-} -- TEMP
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 ----------------------------------------------------------------------
 -- |
@@ -17,8 +19,10 @@
 --
 ----------------------------------------------------------------------
 
-{-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let
-      -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-uniques -dsuppress-coercions #-}
+-- {-# OPTIONS_GHC  -fplugin=LambdaCCC.Plugin #-}
+-- {-# OPTIONS_GHC  -fplugin-opt=LambdaCCC.Reify:verbose #-}
+
+-- {-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-coercions -dverbose-core2core #-}
 
 -- TODO: Revisit these flags, and perhaps move to Makefile.
 -- Do I still want -funfolding-use-threshold=0 ?
@@ -32,7 +36,7 @@ import Control.Applicative (liftA2)
 import ShapedTypes.Nat
 import ShapedTypes.Pair
 import ShapedTypes.Vec
-import ShapedTypes.RTree
+-- import ShapedTypes.RTree
 
 type Unop  a = a -> a
 type Binop a = a -> Unop a
@@ -52,8 +56,23 @@ type Binop a = a -> Unop a
 -- bar :: Num a => Unop (Tree N1 a)
 -- bar = fmap (+1)
 
-bar :: Unop (Tree N1 Bool)
+bar :: Unop (Pair Bool)
 bar = fmap not
+
+-- bar :: Unop (Tree N0 Bool)
+-- bar = fmap not
+
+-- fmapT :: Functor (Tree n) => (a -> b) -> Tree (S n) a -> Tree (S n) b
+-- fmapT f (B ts) = B ((fmap.fmap) f ts)
+
+-- foldMapT :: (Foldable (Tree n), Monoid m) => (a -> m) -> Tree (S n) a -> m
+-- foldMapT f (B ts) = (foldMap.foldMap) f ts
+
+-- foldMapT1 :: (Foldable (Tree Z), Monoid m) => (a -> m) -> Tree (S Z) a -> m
+-- foldMapT1 f (B ts) = (foldMap.foldMap) f ts
+
+-- foo :: Monoid m => (a -> m) -> Tree Z a -> m
+-- foo = foldMap
 
 -- foo :: Num a => Unop (Tree (S (S Z)) a)
 -- foo = fmap (+1)

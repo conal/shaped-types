@@ -1,10 +1,15 @@
 default: Tests
 
 Tests: ../dist Tests.hs Makefile
-	time ghc Tests.hs -fforce-recomp -fplugin=ShapedTypes.Plugin -O -dcore-lint # -dverbose-core2core
+	time ghc Tests.hs -O -dcore-lint -fforce-recomp -fplugin=LambdaCCC.Plugin -fplugin-opt=LambdaCCC.Reify:verbose
+
+# It's odd to use LambdaCCC.Reify here, but when I use the plugin module name,
+# our plugin never gets run. Same for the interactive plugin below.
+
+# -dverbose-core2core
 
 play:
-	hermit Tests.hs -v0 -opt=ShapedTypes.Interactive Play.hss
+	hermit Tests.hs -v0 -opt=LambdaCCC.Interactive Play.hss -- -fplugin-opt=LambdaCCC.Reify:verbose
 
 compile:
 	cd .. ; make

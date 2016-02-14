@@ -9,7 +9,7 @@ set-pp-coercion Kind
 
 -- set-pp-coercion Show
 
-try simplify
+-- try simplify
 
 reify-module
 

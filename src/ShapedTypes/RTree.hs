@@ -13,6 +13,10 @@
 {-# LANGUAGE TypeFamilies       #-}
 {-# LANGUAGE TypeOperators      #-}
 
+#include "Circat/AbsTy.inc"
+
+AbsTyPragmas
+
 {-# LANGUAGE UndecidableInstances #-} -- see below
 
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
@@ -32,23 +36,22 @@
 -- Some data types for specializing
 ----------------------------------------------------------------------
 
-{-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-uniques -dsuppress-coercions #-}
-
--- TODO: Revisit these flags, and perhaps move to Makefile.
--- Do I still want -funfolding-use-threshold=0 ?
+-- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
 module ShapedTypes.RTree (Tree(..)) where
 
 #define SPEC(cls,n) {-# SPECIALISE instance cls (Tree n) #-}
 
 #define SPECS(cls) \
-  SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
+--   SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
 --   SPEC(cls,N5); SPEC(cls,N6); SPEC(cls,N7); SPEC(cls,N8)
 
 -- The more specializations we declare here, the more time it takes to compile
 -- this library code *and* the less time it takes to compile client code. We
 -- thus probably want to comment out all or some of the `SPEC`s in `SPECS` while
 -- developing.
+
+AbsTyImports
 
 import Control.Applicative (liftA2)
 
@@ -129,3 +132,6 @@ instance HasRep (Tree (S n) a) where
 --       in the type family application: Rep (Pair (Tree n a))
 --     (Use UndecidableInstances to permit this)
 --     In the type instance declaration for ‘Rep’
+
+AbsTy(Tree Z a)
+AbsTy(Tree (S n) a)

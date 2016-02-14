@@ -21,13 +21,16 @@ Library
   hs-Source-Dirs:      src
   Extensions:
   Build-Depends:       base<5
-                     , ghc >= 7.10.3
-                     , kure >= 2.16.0
-                     , hermit >= 1.0.0.1
-                     , type-unary
+                     , ghc-prim
                      , circat
-                     , monomorph
+--                      , ghc >= 7.10.3
+--                      , kure >= 2.16.0
+--                      , hermit >= 1.0.0.1
+--                      , type-unary
+--                      , monomorph
                      , lambda-ccc
+
+-- TODO: can I drop ghc-prim and still compile with the reification plugin?
 
 -- TODO: drop monomorph
 
@@ -36,6 +39,16 @@ Library
                        ShapedTypes.Nat
                        ShapedTypes.Vec
                        ShapedTypes.RTree
-                       ShapedTypes.Interactive
-                       ShapedTypes.Plugin
+
+--                        ShapedTypes.Interactive
+--                        ShapedTypes.Plugin
   ghc-options:         -Wall
+                       -fplugin=LambdaCCC.Plugin -dcore-lint
+--                        -fplugin-opt=LambdaCCC.Reify:verbose
+--                        -ddump-to-file -dverbose-core2core
+--                        -dppr-case-as-let -dsuppress-idinfo
+--                        -dsuppress-uniques -dsuppress-module-prefixes
+
+                       -- -dsuppress-type-applications
+                       -- -dsuppress-all
+

@@ -62,7 +62,6 @@ type family (a :: Nat) ^ (b :: Nat) :: Nat
 type instance a ^   Z = S Z
 type instance a ^ S b = a * (a ^ b)
 
-
 type N0  = Z
 
 -- Generated code

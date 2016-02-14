@@ -1,7 +1,15 @@
-{-# LANGUAGE CPP               #-}
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies       #-}
+
+-- For circuit support
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
@@ -20,44 +28,96 @@
 -- Some data types for specializing
 ----------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -fplugin=ShapedTypes.Plugin -fobject-code #-}
+-- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
--- {-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-uniques -dsuppress-coercions -dverbose-core2core #-}
+module ShapedTypes.Pair {-(Pair(..))-} where
 
-module ShapedTypes.Pair (Pair(..)) where
+import Prelude hiding (id,(.))
 
 -- import Data.Typeable (Typeable)
 -- import Data.Data (Data)
 
+import Control.Category (id,(.))
+
 import Circat.Rep
+
+import Circat.Category (Uncurriable(..),twiceP,(***),(&&&),second)
+import Circat.Classes (BottomCat(..),IfCat(..))
+import Circat.Circuit
+#include "Circat/AbsTy.inc"
 
 infixl 1 :#
 -- | Uniform pairs
-data Pair a = a :# a deriving (Functor,Traversable) -- ,Eq,Show,Typeable,Data,Generic,Generic1
+data Pair a = a :# a -- deriving (Functor,Traversable) -- ,Eq,Show,Typeable,Data,Generic,Generic1
 
--- The derived foldMap inserts a mempty (in GHC 7.0.4).
-instance Foldable Pair where
-  foldMap f (a :# b) = f a `mappend` f b
-  {-# INLINE foldMap #-}
-
-instance Applicative Pair where
-  pure a = a :# a
-  (f :# g) <*> (a :# b) = (f a :# g b)
-  {-# INLINE pure #-}
-  {-# INLINE (<*>) #-}
-
-instance Monad Pair where
-  return = pure
-  m >>= f = joinP (f <$> m)
-  {-# INLINE return #-}
-  {-# INLINE (>>=) #-}
-
-joinP :: Pair (Pair a) -> Pair a
-joinP ((a :# _) :# (_ :# d)) = a :# d
-{-# INLINE joinP #-}
-
+-- TODO: retry with deriving
 
 type instance Rep (Pair a) = (a,a)
 instance HasRep (Pair a) where
   repr (a :# a') = (a,a')
   abst (a,a') = (a :# a')
+
+-- deriving instance Functor     Pair
+
+instance Functor Pair where
+  fmap f (a :# b) = f a :# f b
+  {-# INLINABLE fmap #-}
+
+deriving instance Traversable Pair
+
+-- The derived foldMap inserts a mempty (in GHC 7.0.4).
+instance Foldable Pair where
+  foldMap f (a :# b) = f a `mappend` f b
+  {-# INLINABLE foldMap #-}
+
+instance Applicative Pair where
+  pure a = a :# a
+  (f :# g) <*> (a :# b) = (f a :# g b)
+  {-# INLINABLE pure #-}
+  {-# INLINABLE (<*>) #-}
+
+instance Monad Pair where
+  return = pure
+  m >>= f = joinP (f <$> m)
+  {-# INLINABLE return #-}
+  {-# INLINABLE (>>=) #-}
+
+joinP :: Pair (Pair a) -> Pair a
+joinP ((a :# _) :# (_ :# d)) = a :# d
+{-# INLINABLE joinP #-}
+
+instance GenBuses q_q => Uncurriable (:>) q_q (Pair a) where
+  uncurries = id
+
+instance GenBuses a => GenBuses (Pair a) where
+  genBuses' prim ins o = do (a,oa) <- gb o
+                            (b,ob) <- gb oa
+                            return (abstB (PairB a b), ob)
+   where
+     gb :: Int -> CircuitM (Buses a,Int)
+     gb = genBuses' prim ins
+     {-# NOINLINE gb #-}
+  delay (a :# b) = abstC . (del a *** del b) . reprC
+   where
+     del :: a -> (a :> a)
+     del = delay
+     {-# NOINLINE del #-}
+  ty = const (PairT t t)
+   where
+     t = ty (undefined :: a)
+     {-# NOINLINE t #-}
+
+-- Without these NOINLINE pragmas, GHC's typechecker does exponential work for
+-- binary trees. I'll want to do something similar for Vec as well so that n-ary
+-- trees don't blow up.
+
+instance BottomCat (:>) a => BottomCat (:>) (Pair a) where
+  bottomC = abstC . (bc &&& bc)
+   where
+     bc :: () :> a
+     bc = bottomC
+     {-# NOINLINE bc #-}
+
+instance IfCat (:>) a => IfCat (:>) (Pair a)
+ where
+   ifC = abstC . pairIf . second (twiceP reprC)

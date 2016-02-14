@@ -13,6 +13,10 @@
 {-# LANGUAGE TypeFamilies       #-}
 {-# LANGUAGE TypeOperators      #-}
 
+#include "Circat/AbsTy.inc"
+
+AbsTyPragmas
+
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -30,7 +34,7 @@
 -- Length-typed lists/vectors
 ----------------------------------------------------------------------
 
-{-# OPTIONS_GHC -funfolding-use-threshold=0 -ddump-simpl -ddump-to-file -dppr-case-as-let -dsuppress-module-prefixes -dsuppress-idinfo -dsuppress-uniques -dsuppress-coercions #-}
+-- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
 module ShapedTypes.Vec where
 
@@ -42,10 +46,12 @@ import Circat.Rep
 -- import TypeUnary.TyNat
 import ShapedTypes.Nat
 
+AbsTyImports
+
 #define SPEC(cls,n) {-# SPECIALISE instance cls (Vec n) #-}
 
 #define SPECS(cls) \
-  SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
+--   SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
 --   SPEC(cls,N5); SPEC(cls,N6); SPEC(cls,N7); SPEC(cls,N8)
 
 -- The more specializations we declare here, the more time it takes to compile
@@ -104,7 +110,6 @@ instance Traversable (Vec n) => Traversable (Vec (S n)) where
   {-# INLINABLE traverse #-}
   SPECS(Traversable)
 
-
 type instance Rep (Vec Z a) = ()
 instance HasRep (Vec Z a) where
   repr ZVec = ()
@@ -114,3 +119,7 @@ type instance Rep (Vec (S n) a) = (a,Vec n a)
 instance HasRep (Vec (S n) a) where
   repr (a :< as) = (a, as)
   abst (a, as) = (a :< as)
+
+
+AbsTy(Vec Z a)
+AbsTy(Vec (S n) a)
