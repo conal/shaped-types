@@ -1,0 +1,4 @@
+-- For ApplicativeNumeric-inc.hs
+:set -package applicative-numbers
+-- For Circat/AbsTy.inc
+:set -package circat
