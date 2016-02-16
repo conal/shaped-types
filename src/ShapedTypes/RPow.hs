@@ -58,7 +58,7 @@ import Circat.Rep
 import ShapedTypes.Nat
 -- import ShapedTypes.Pair
 
-infixr 8 ^^
+infix 8 ^^  -- infixr is ill-kinded, while infixl is contrary to convention
 
 -- Top-down, depth-typed, perfect, binary, leaf trees
 data (^^) :: (* -> *) -> Nat -> * -> * where
@@ -112,12 +112,10 @@ instance HasRep ((h ^^ Z) a) where
   repr (L a) = a
   abst = L
 
-
--- One step at a time:
 type instance Rep ((h ^^ S n) a) = h ((h ^^ n) a)
 instance HasRep ((h ^^ S n) a) where
   repr (B ts) = ts
   abst = B
 
-AbsTy((h ^^ Z) a)
+AbsTy((h ^^  Z ) a)
 AbsTy((h ^^ S n) a)
