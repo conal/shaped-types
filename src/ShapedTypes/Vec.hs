@@ -36,7 +36,7 @@ AbsTyPragmas
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
-module ShapedTypes.Vec where
+module ShapedTypes.Vec (Vec(..)) where
 
 import Data.Monoid ((<>))
 import Control.Applicative (liftA2)
