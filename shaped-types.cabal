@@ -40,7 +40,6 @@ Library
                        ShapedTypes.Vec
                        ShapedTypes.RPow
                        ShapedTypes.LPow
---                        ShapedTypes.RTree
 
 --                        ShapedTypes.Interactive
 --                        ShapedTypes.Plugin
