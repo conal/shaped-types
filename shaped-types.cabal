@@ -38,7 +38,9 @@ Library
                        ShapedTypes.Pair
                        ShapedTypes.Nat
                        ShapedTypes.Vec
-                       ShapedTypes.RTree
+                       ShapedTypes.RPow
+                       ShapedTypes.LPow
+--                        ShapedTypes.RTree
 
 --                        ShapedTypes.Interactive
 --                        ShapedTypes.Plugin
