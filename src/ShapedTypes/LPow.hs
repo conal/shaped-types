@@ -36,9 +36,9 @@ AbsTyPragmas
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
-module ShapedTypes.LPow ((^^)(..)) where
+module ShapedTypes.LPow ((^)(..)) where
 
-#define SPEC(cls,n) {-# SPECIALISE instance cls (h ^^ (n)) #-}
+#define SPEC(cls,n) {-# SPECIALISE instance cls (h ^ (n)) #-}
 
 #define SPECS(cls) \
 --   SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
@@ -55,31 +55,31 @@ import Control.Applicative (liftA2)
 
 import Circat.Rep
 
-import ShapedTypes.Nat
+import ShapedTypes.Nat hiding (type (^))
 
-infix 8 ^^  -- infixr is ill-kinded, while infixl is contrary to convention
+infix 8 ^  -- infixr is ill-kinded, while infixl is contrary to convention
 
 -- Top-down, depth-typed, perfect, binary, leaf trees
-data (^^) :: (* -> *) -> Nat -> * -> * where
-  L :: a -> (h ^^ Z) a
-  B :: (h ^^ n) (h a) -> (h ^^ S n) a
+data (^) :: (* -> *) -> Nat -> * -> * where
+  L :: a -> (h ^ Z) a
+  B :: (h ^ n) (h a) -> (h ^ S n) a
 
-instance Functor (h ^^ Z) where
+instance Functor (h ^ Z) where
   fmap f (L a ) = L (f a)
   {-# INLINABLE fmap #-}
 
-instance (Functor h, Functor (h ^^ n)) => Functor (h ^^ S n) where
+instance (Functor h, Functor (h ^ n)) => Functor (h ^ S n) where
   fmap f (B ts) = B ((fmap.fmap) f ts)
   {-# INLINABLE fmap #-}
   SPECS(Functor)
 
-instance Applicative (h ^^ Z) where
+instance Applicative (h ^ Z) where
   pure a = L a
   L f <*> L a = L (f a)
   {-# INLINABLE pure #-}
   {-# INLINABLE (<*>) #-}
 
-instance (Applicative h, Applicative (h ^^ n)) => Applicative (h ^^ S n) where
+instance (Applicative h, Applicative (h ^ n)) => Applicative (h ^ S n) where
   pure a = B (pure (pure a))
   B fs <*> B xs = B (liftA2 (<*>) fs xs)
   {-# INLINABLE pure #-}
@@ -88,33 +88,33 @@ instance (Applicative h, Applicative (h ^^ n)) => Applicative (h ^^ S n) where
 
 -- TODO: Monad
 
-instance Foldable (h ^^ Z) where
+instance Foldable (h ^ Z) where
   foldMap f (L a) = f a
   {-# INLINABLE foldMap #-}
 
-instance (Foldable h, Foldable (h ^^ n)) => Foldable (h ^^ S n) where
+instance (Foldable h, Foldable (h ^ n)) => Foldable (h ^ S n) where
   foldMap f (B ts) = (foldMap.foldMap) f ts
   {-# INLINABLE foldMap #-}
   SPECS(Foldable)
 
-instance Traversable (h ^^ Z) where
+instance Traversable (h ^ Z) where
   traverse f (L a ) = L <$> f a
   {-# INLINABLE traverse #-}
 
-instance (Traversable h, Traversable (h ^^ n)) => Traversable (h ^^ S n) where
+instance (Traversable h, Traversable (h ^ n)) => Traversable (h ^ S n) where
   traverse f (B ts) = B <$> (traverse.traverse) f ts
   {-# INLINABLE traverse #-}
   SPECS(Traversable)
 
-type instance Rep ((h ^^ Z) a) = a
-instance HasRep ((h ^^ Z) a) where
+type instance Rep ((h ^ Z) a) = a
+instance HasRep ((h ^ Z) a) where
   repr (L a) = a
   abst = L
 
-type instance Rep ((h ^^ S n) a) = (h ^^ n) (h a)
-instance HasRep ((h ^^ S n) a) where
+type instance Rep ((h ^ S n) a) = (h ^ n) (h a)
+instance HasRep ((h ^ S n) a) where
   repr (B t) = t
   abst = B
 
-AbsTy((h ^^  Z ) a)
-AbsTy((h ^^ S n) a)
+AbsTy((h ^  Z ) a)
+AbsTy((h ^ S n) a)
