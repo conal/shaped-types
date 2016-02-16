@@ -60,11 +60,14 @@ import Control.Applicative (liftA2)
 import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
+import Data.Key
+
 -- import Data.Functor.Classes (Eq1(..),Ord1(..),Show1(..),showsUnary,showsUnary1)
 import Circat.Rep
 import Circat.Misc ((<~),showsUnary)
 
 import ShapedTypes.Nat hiding (type (^))
+import ShapedTypes.Vec (Vec(..))
 
 {--------------------------------------------------------------------
     Type and basic manipulation
@@ -177,46 +180,50 @@ instance CoArbitrary a => CoArbitrary (Pow h Z a) where
 instance CoArbitrary (Pow h n (h a)) => CoArbitrary (Pow h (S n) a) where
   coarbitrary (B a) = coarbitrary a
 
-#if 0
 {--------------------------------------------------------------------
-    Lookup and update
+    keys package
 --------------------------------------------------------------------}
 
-subtree :: Vec n Bool -> Pow h (n + m) a -> Pow h m a
-subtree ZVec      = id
-subtree (b :< bs) = subtree bs . P.get b . unB
+type instance Key (Pow h m) = Vec m (Key h)
 
-#ifdef Induction
+-- TODO: Consider using snoc vectors
 
-get :: forall n a. IsNat n => Vec n Bool -> Pow h n a -> a
-get bs | Dict <- (plusZero :: Dict (PlusZero n)) = unL . subtree bs
+instance Keyed (Pow h Z) where
+  mapWithKey q = inL (q ZVec)
 
-(!) :: IsNat n => Pow h n a -> Vec n Bool -> a
-(!) = flip get
+instance (Keyed h, Keyed (Pow h n)) => Keyed (Pow h (S n)) where
+  mapWithKey q = inB (mapWithKey (mapWithKey . fmap q . flip (:<)))
 
-#else
+-- See RPow source for typings
 
-get :: Vec n Bool -> Pow h n a -> a
-get ZVec      = unL
-get (b :< bs) = get bs . P.get b . unB
+instance Applicative (Pow n h) => Zip (Pow n h) where
+  zipWith = liftA2
 
-(!) :: Pow h n a -> Vec n Bool -> a
-(!) = flip get
+instance (Applicative (Pow n h), Keyed (Pow n h)) => ZipWithKey (Pow n h)
 
-#endif
+instance Indexable (Pow h n) => Lookup (Pow h n) where
+  lookup k t = Just (index t k)
 
-update :: Vec n Bool -> Unop a -> Unop (Pow h n a)
-update ZVec      = inL
-update (b :< bs) = inB . P.update b . update bs
+instance Indexable (Pow h Z) where
+  index (L a) ZVec = a
 
-{-# INLINE get #-}
-{-# INLINE update #-}
+instance (Indexable h, Indexable (Pow h n)) => Indexable (Pow h (S n)) where
+  index (B ts) (k :< ks) = ts ! ks ! k
 
-_t1,_t1' :: Pow h N1 Int
-_t1 = tree1 3 5
-_t1' = update (False :< ZVec) succ _t1
+instance Adjustable (Pow h Z) where
+  adjust f ZVec = inL f
 
-#endif
+instance (Adjustable h, Adjustable (Pow h n)) => Adjustable (Pow h (S n)) where
+  adjust f (k :< ks) = inB (adjust (adjust f k) ks)
+
+{- -- Worth implementing?
+
+instance (Foldable (Pow n h), Keyed (Pow n h)) => FoldableWithKey (Pow n h) where
+  foldMapWithKey f = foldMap (uncurry f) . keyed
+
+instance (Traversable (Pow n h), Keyed (Pow n h)) => TraversableWithKey (Pow n h) where
+  traverseWithKey f = traverse (uncurry f) . keyed
+-}
 
 {--------------------------------------------------------------------
     Other representations

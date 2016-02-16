@@ -22,13 +22,13 @@ Library
   Extensions:
   Build-Depends:       base<5
                      , ghc-prim
+                     , QuickCheck >= 2.7.3
+                     , keys
                      , circat
---                      , ghc >= 7.10.3
---                      , kure >= 2.16.0
---                      , hermit >= 1.0.0.1
---                      , type-unary
---                      , monomorph
                      , lambda-ccc
+
+-- I need transformers >= 0.4 for Data.Functor.Classes (Eq1 etc).
+-- The Eq1 interface changed at 0.5, and I think hermit uses 0.4.
 
 -- TODO: can I drop ghc-prim and still compile with the reification plugin?
 
@@ -45,6 +45,7 @@ Library
 --                        ShapedTypes.Plugin
   ghc-options:         -Wall
                        -fplugin=LambdaCCC.Plugin -dcore-lint
+
 --                        -fplugin-opt=LambdaCCC.Reify:verbose
 --                        -ddump-to-file -dverbose-core2core
 --                        -dppr-case-as-let -dsuppress-idinfo
