@@ -17,8 +17,6 @@
 
 AbsTyPragmas
 
-{-# LANGUAGE UndecidableInstances #-} -- see below
-
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -38,9 +36,9 @@ AbsTyPragmas
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
-module ShapedTypes.LPow (Pow(..),type (^^)) where
+module ShapedTypes.LPow ((^^)(..)) where
 
-#define SPEC(cls,n) {-# SPECIALISE instance cls (Pow n h) #-}
+#define SPEC(cls,n) {-# SPECIALISE instance cls (h ^^ (n)) #-}
 
 #define SPECS(cls) \
 --   SPEC(cls,N1); SPEC(cls,N2); SPEC(cls,N3); SPEC(cls,N4);\
@@ -61,29 +59,28 @@ import ShapedTypes.Nat
 -- import ShapedTypes.Pair
 
 infixr 8 ^^
-type (^^) = Pow
 
 -- Top-down, depth-typed, perfect, binary, leaf trees
-data Pow :: Nat -> (* -> *) -> * -> * where
-  L :: a -> Pow Z h a
-  B :: Pow n h (h a) -> Pow (S n) h a
+data (^^) :: (* -> *) -> Nat -> * -> * where
+  L :: a -> (h ^^ Z) a
+  B :: (h ^^ n) (h a) -> (h ^^ S n) a
 
-instance Functor (Pow Z h) where
+instance Functor (h ^^ Z) where
   fmap f (L a ) = L (f a)
   {-# INLINABLE fmap #-}
 
-instance (Functor h, Functor (Pow n h)) => Functor (Pow (S n) h) where
+instance (Functor h, Functor (h ^^ n)) => Functor (h ^^ S n) where
   fmap f (B ts) = B ((fmap.fmap) f ts)
   {-# INLINABLE fmap #-}
   SPECS(Functor)
 
-instance Applicative (Pow Z h) where
+instance Applicative (h ^^ Z) where
   pure a = L a
   L f <*> L a = L (f a)
   {-# INLINABLE pure #-}
   {-# INLINABLE (<*>) #-}
 
-instance (Applicative h, Applicative (Pow n h)) => Applicative (Pow (S n) h) where
+instance (Applicative h, Applicative (h ^^ n)) => Applicative (h ^^ S n) where
   pure a = B (pure (pure a))
   B fs <*> B xs = B (liftA2 (<*>) fs xs)
   {-# INLINABLE pure #-}
@@ -92,49 +89,34 @@ instance (Applicative h, Applicative (Pow n h)) => Applicative (Pow (S n) h) whe
 
 -- TODO: Monad
 
-instance Foldable (Pow Z h) where
+instance Foldable (h ^^ Z) where
   foldMap f (L a) = f a
   {-# INLINABLE foldMap #-}
 
-instance (Foldable h, Foldable (Pow n h)) => Foldable (Pow (S n) h) where
+instance (Foldable h, Foldable (h ^^ n)) => Foldable (h ^^ S n) where
   foldMap f (B ts) = (foldMap.foldMap) f ts
   {-# INLINABLE foldMap #-}
   SPECS(Foldable)
 
-instance Traversable (Pow Z h) where
+instance Traversable (h ^^ Z) where
   traverse f (L a ) = L <$> f a
   {-# INLINABLE traverse #-}
 
-instance (Traversable h, Traversable (Pow n h)) => Traversable (Pow (S n) h) where
+instance (Traversable h, Traversable (h ^^ n)) => Traversable (h ^^ S n) where
   traverse f (B ts) = B <$> (traverse.traverse) f ts
   {-# INLINABLE traverse #-}
   SPECS(Traversable)
 
-type instance Rep (Pow Z h a) = a
-instance HasRep (Pow Z h a) where
+type instance Rep ((h ^^ Z) a) = a
+instance HasRep ((h ^^ Z) a) where
   repr (L a) = a
   abst = L
 
-#if 1
 -- One step at a time:
-type instance Rep (Pow (S n) h a) = Pow n h (h a)
-instance HasRep (Pow (S n) h a) where
+type instance Rep ((h ^^ S n) a) = (h ^^ n) (h a)
+instance HasRep ((h ^^ S n) a) where
   repr (B t) = t
   abst = B
-#else
--- Two steps:
-type instance Rep (Pow (S n) a) = Rep (h (Pow n a)) -- *
--- type instance Rep (Pow (S n) a) = (Pow n a , Pow n a)
-instance HasRep (Pow (S n) a) where
-  repr (B t) = repr t
-  abst t = B (abst t)
-#endif
 
--- *
---     Application is no smaller than the instance head
---       in the type family application: Rep (h (Pow n a))
---     (Use UndecidableInstances to permit this)
---     In the type instance declaration for ‘Rep’
-
-AbsTy(Pow Z h a)
-AbsTy(Pow (S n) h a)
+AbsTy((h ^^ Z) a)
+AbsTy((h ^^ S n) a)
