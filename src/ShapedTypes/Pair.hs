@@ -87,15 +87,17 @@ joinP :: Pair (Pair a) -> Pair a
 joinP ((a :# _) :# (_ :# d)) = a :# d
 {-# INLINABLE joinP #-}
 
+{--------------------------------------------------------------------
+    Circuit support
+--------------------------------------------------------------------}
+
 instance GenBuses q_q => Uncurriable (:>) q_q (Pair a) where
   uncurries = id
 
 instance GenBuses a => GenBuses (Pair a) where
-  genBuses' prim ins o = do (a,oa) <- gb o
-                            (b,ob) <- gb oa
-                            return (abstB (PairB a b), ob)
+  genBuses' prim ins = abstB <$> (PairB <$> gb <*> gb)
    where
-     gb :: Int -> CircuitM (Buses a,Int)
+     gb :: BusesM (Buses a)
      gb = genBuses' prim ins
      {-# NOINLINE gb #-}
   delay (a :# b) = abstC . (del a *** del b) . reprC
