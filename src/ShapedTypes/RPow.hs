@@ -56,7 +56,6 @@ import Control.Applicative (liftA2)
 import Circat.Rep
 
 import ShapedTypes.Nat
--- import ShapedTypes.Pair
 
 infix 8 ^^  -- infixr is ill-kinded, while infixl is contrary to convention
 
