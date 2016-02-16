@@ -31,7 +31,7 @@
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 -- {-# OPTIONS_GHC -ddump-deriv #-}
 
-module ShapedTypes.Pair {-(Pair(..))-} where
+module ShapedTypes.Pair (Pair(..)) where
 
 import Prelude hiding (id,(.))
 
