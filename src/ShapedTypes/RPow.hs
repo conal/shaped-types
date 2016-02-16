@@ -60,9 +60,8 @@ import Control.Applicative (liftA2)
 import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
-import Data.Functor.Classes (Eq1(..),Ord1(..),Show1(..),showsUnary,showsUnary1)
 import Circat.Rep
-import Circat.Misc ((<~))
+import Circat.Misc ((<~),showsUnary)
 
 import ShapedTypes.Nat hiding (type (^))
 
@@ -98,51 +97,6 @@ inL2 = inL <~ unL
 inB2 :: (h (Pow h m a) -> h (Pow h n b) -> h (Pow h o c))
      -> (Pow h (S m) a -> Pow h (S n) b -> Pow h (S o) c)
 inB2 = inB <~ unB
-
--- deriving instance Eq a => Eq (Pow h n a)
-
-instance (Eq1 (Pow h n), Eq a) => Eq (Pow h n a) where
-  (==) = eq1
-
-instance Eq1 (Pow h Z) where
-  eq1 (L a) (L b) = a == b
-
-instance (Eq1 (Pow h n), Eq1 h) => Eq1 (Pow h (S n)) where
-  eq1 (B ps) (B qs) = eq1 ps qs
-
-instance (Ord1 (Pow h n), Ord a) => Ord (Pow h n a) where
-  compare = compare1
-
-instance Ord1 (Pow h Z) where
-  compare1 = compare `on` unL
-  -- L a `compare1` L b = a `compare` b  -- on
-
-instance (Ord1 (Pow h n), Ord1 h) => Ord1 (Pow h (S n)) where
-  compare1 = compare1 `on` unB
-  -- B ps `compare1` B qs = ps `compare1` qs
-
-instance (Show1 (Pow h n), Show a) => Show (Pow h n a) where
-  showsPrec = showsPrec1
-
-instance Show1 (Pow h Z) where
-  showsPrec1 p (L a)  = showsUnary "L" p a
-
-instance (Show1 (Pow h n), Show1 h) => Show1 (Pow h (S n)) where
-  showsPrec1 p (B ts)  = showsUnary1 "B" p ts
-
-instance Arbitrary a => Arbitrary (Pow h Z a) where
-  arbitrary    = L <$> arbitrary
-  shrink (L a) = L <$> shrink a
-
-instance Arbitrary (h (Pow h n a)) => Arbitrary (Pow h (S n) a) where
-  arbitrary    = B <$> arbitrary
-  shrink (B a) = B <$> shrink a
-
-instance CoArbitrary a => CoArbitrary (Pow h Z a) where
-  coarbitrary (L a) = coarbitrary a
-
-instance CoArbitrary (h (Pow h n a)) => CoArbitrary (Pow h (S n) a) where
-  coarbitrary (B a) = coarbitrary a
 
 {--------------------------------------------------------------------
     Standard type class instances
@@ -189,6 +143,38 @@ instance (Traversable h, Traversable (Pow h n)) => Traversable (Pow h (S n)) whe
   traverse f (B ts) = B <$> (traverse.traverse) f ts
   {-# INLINABLE traverse #-}
   SPECS(Traversable)
+
+instance Eq a => Eq (Pow h Z a) where
+  (==) = (==) `on` unL
+
+instance Eq (h (Pow h n a)) => Eq (Pow h (S n) a) where
+  (==) = (==) `on` unB
+
+instance Ord a => Ord (Pow h Z a) where
+  compare = compare `on` unL
+
+instance Ord (h (Pow h n a)) => Ord (Pow h (S n) a) where
+  compare = compare `on` unB
+
+instance Show a => Show (Pow h Z a) where
+  showsPrec p (L a)  = showsUnary "L" p a
+
+instance Show (h (Pow h n a)) => Show (Pow h (S n) a) where
+  showsPrec p (B ts)  = showsUnary "B" p ts
+
+instance Arbitrary a => Arbitrary (Pow h Z a) where
+  arbitrary    = L <$> arbitrary
+  shrink (L a) = L <$> shrink a
+
+instance Arbitrary (h (Pow h n a)) => Arbitrary (Pow h (S n) a) where
+  arbitrary    = B <$> arbitrary
+  shrink (B a) = B <$> shrink a
+
+instance CoArbitrary a => CoArbitrary (Pow h Z a) where
+  coarbitrary (L a) = coarbitrary a
+
+instance CoArbitrary (h (Pow h n a)) => CoArbitrary (Pow h (S n) a) where
+  coarbitrary (B a) = coarbitrary a
 
 #if 0
 {--------------------------------------------------------------------

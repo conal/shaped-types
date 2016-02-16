@@ -1,17 +1,19 @@
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE ConstraintKinds    #-}
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable     #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DeriveTraversable  #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE KindSignatures     #-}
-{-# LANGUAGE TypeFamilies       #-}
-{-# LANGUAGE TypeOperators      #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE ConstraintKinds     #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE DeriveFoldable      #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
 
 #include "Circat/AbsTy.inc"
 
@@ -19,7 +21,7 @@ AbsTyPragmas
 
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
 
--- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
+{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
 
 ----------------------------------------------------------------------
@@ -36,7 +38,9 @@ AbsTyPragmas
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
-module ShapedTypes.LPow ((^)(..)) where
+module ShapedTypes.LPow where
+
+  -- TODO: Explicit exports
 
 #define SPEC(cls,n) {-# SPECIALISE instance cls (h ^ (n)) #-}
 
@@ -51,35 +55,70 @@ module ShapedTypes.LPow ((^)(..)) where
 
 AbsTyImports
 
+import Data.Function (on)
 import Control.Applicative (liftA2)
+import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
+import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
+-- import Data.Functor.Classes (Eq1(..),Ord1(..),Show1(..),showsUnary,showsUnary1)
 import Circat.Rep
+import Circat.Misc ((<~),showsUnary)
 
 import ShapedTypes.Nat hiding (type (^))
+
+{--------------------------------------------------------------------
+    Type and basic manipulation
+--------------------------------------------------------------------}
 
 infix 8 ^  -- infixr is ill-kinded, while infixl is contrary to convention
 
 -- Top-down, depth-typed, perfect, binary, leaf trees
-data (^) :: (* -> *) -> Nat -> * -> * where
-  L :: a -> (h ^ Z) a
-  B :: (h ^ n) (h a) -> (h ^ S n) a
+data Pow :: (* -> *) -> Nat -> * -> * where
+  L :: a -> Pow h Z a
+  B :: Pow h n (h a) -> Pow h (S n) a
 
-instance Functor (h ^ Z) where
+type (^) = Pow
+
+unL :: Pow h Z a -> a
+unL (L a) = a
+
+unB :: Pow h (S n) a -> Pow h n (h a)
+unB (B p) = p
+
+inL :: (a -> b) -> (Pow h Z a -> Pow h Z b)
+inL = L <~ unL
+
+inB :: (Pow h m (h a) -> Pow h n (h b))
+    -> (Pow h (S m) a -> Pow h (S n) b)
+inB = B <~ unB
+
+inL2 :: (a -> b -> c) -> (Pow h Z a -> Pow h Z b -> Pow h Z c)
+inL2 = inL <~ unL
+
+inB2 :: (Pow h m (h a) -> Pow h n (h b) -> Pow h o (h c))
+     -> (Pow h (S m) a -> Pow h (S n) b -> Pow h (S o) c)
+inB2 = inB <~ unB
+
+{--------------------------------------------------------------------
+    Standard type class instances
+--------------------------------------------------------------------}
+
+instance Functor (Pow h Z) where
   fmap f (L a ) = L (f a)
   {-# INLINABLE fmap #-}
 
-instance (Functor h, Functor (h ^ n)) => Functor (h ^ S n) where
+instance (Functor h, Functor (Pow h n)) => Functor (Pow h (S n)) where
   fmap f (B ts) = B ((fmap.fmap) f ts)
   {-# INLINABLE fmap #-}
   SPECS(Functor)
 
-instance Applicative (h ^ Z) where
+instance Applicative (Pow h Z) where
   pure a = L a
   L f <*> L a = L (f a)
   {-# INLINABLE pure #-}
   {-# INLINABLE (<*>) #-}
 
-instance (Applicative h, Applicative (h ^ n)) => Applicative (h ^ S n) where
+instance (Applicative h, Applicative (Pow h n)) => Applicative (Pow h (S n)) where
   pure a = B (pure (pure a))
   B fs <*> B xs = B (liftA2 (<*>) fs xs)
   {-# INLINABLE pure #-}
@@ -88,33 +127,121 @@ instance (Applicative h, Applicative (h ^ n)) => Applicative (h ^ S n) where
 
 -- TODO: Monad
 
-instance Foldable (h ^ Z) where
+instance Foldable (Pow h Z) where
   foldMap f (L a) = f a
   {-# INLINABLE foldMap #-}
 
-instance (Foldable h, Foldable (h ^ n)) => Foldable (h ^ S n) where
+instance (Foldable h, Foldable (Pow h n)) => Foldable (Pow h (S n)) where
   foldMap f (B ts) = (foldMap.foldMap) f ts
   {-# INLINABLE foldMap #-}
   SPECS(Foldable)
 
-instance Traversable (h ^ Z) where
+instance Traversable (Pow h Z) where
   traverse f (L a ) = L <$> f a
   {-# INLINABLE traverse #-}
 
-instance (Traversable h, Traversable (h ^ n)) => Traversable (h ^ S n) where
+instance (Traversable h, Traversable (Pow h n)) => Traversable (Pow h (S n)) where
   traverse f (B ts) = B <$> (traverse.traverse) f ts
   {-# INLINABLE traverse #-}
   SPECS(Traversable)
 
-type instance Rep ((h ^ Z) a) = a
-instance HasRep ((h ^ Z) a) where
+instance Eq a => Eq (Pow h Z a) where
+  (==) = (==) `on` unL
+
+instance Eq (Pow h n (h a)) => Eq (Pow h (S n) a) where
+  (==) = (==) `on` unB
+
+instance Ord a => Ord (Pow h Z a) where
+  compare = compare `on` unL
+
+instance Ord (Pow h n (h a)) => Ord (Pow h (S n) a) where
+  compare = compare `on` unB
+
+instance Show a => Show (Pow h Z a) where
+  showsPrec p (L a)  = showsUnary "L" p a
+
+instance Show (Pow h n (h a)) => Show (Pow h (S n) a) where
+  showsPrec p (B ts)  = showsUnary "B" p ts
+
+instance Arbitrary a => Arbitrary (Pow h Z a) where
+  arbitrary    = L <$> arbitrary
+  shrink (L a) = L <$> shrink a
+
+instance Arbitrary (Pow h n (h a)) => Arbitrary (Pow h (S n) a) where
+  arbitrary    = B <$> arbitrary
+  shrink (B a) = B <$> shrink a
+
+instance CoArbitrary a => CoArbitrary (Pow h Z a) where
+  coarbitrary (L a) = coarbitrary a
+
+instance CoArbitrary (Pow h n (h a)) => CoArbitrary (Pow h (S n) a) where
+  coarbitrary (B a) = coarbitrary a
+
+#if 0
+{--------------------------------------------------------------------
+    Lookup and update
+--------------------------------------------------------------------}
+
+subtree :: Vec n Bool -> Pow h (n + m) a -> Pow h m a
+subtree ZVec      = id
+subtree (b :< bs) = subtree bs . P.get b . unB
+
+#ifdef Induction
+
+get :: forall n a. IsNat n => Vec n Bool -> Pow h n a -> a
+get bs | Dict <- (plusZero :: Dict (PlusZero n)) = unL . subtree bs
+
+(!) :: IsNat n => Pow h n a -> Vec n Bool -> a
+(!) = flip get
+
+#else
+
+get :: Vec n Bool -> Pow h n a -> a
+get ZVec      = unL
+get (b :< bs) = get bs . P.get b . unB
+
+(!) :: Pow h n a -> Vec n Bool -> a
+(!) = flip get
+
+#endif
+
+update :: Vec n Bool -> Unop a -> Unop (Pow h n a)
+update ZVec      = inL
+update (b :< bs) = inB . P.update b . update bs
+
+{-# INLINE get #-}
+{-# INLINE update #-}
+
+_t1,_t1' :: Pow h N1 Int
+_t1 = tree1 3 5
+_t1' = update (False :< ZVec) succ _t1
+
+#endif
+
+{--------------------------------------------------------------------
+    Other representations
+--------------------------------------------------------------------}
+
+type instance Rep (Pow h Z a) = a
+instance HasRep (Pow h Z a) where
   repr (L a) = a
   abst = L
 
-type instance Rep ((h ^ S n) a) = (h ^ n) (h a)
-instance HasRep ((h ^ S n) a) where
+type instance Rep (Pow h (S n) a) = Pow h n (h a)
+instance HasRep (Pow h (S n) a) where
   repr (B t) = t
-  abst = B
+  abst t = B t
 
-AbsTy((h ^  Z ) a)
-AbsTy((h ^ S n) a)
+AbsTy(Pow h   Z   a)
+AbsTy(Pow h (S n) a)
+
+
+instance Generic1 (Pow h Z) where
+  type Rep1 (Pow h Z) = Par1
+  from1 = Par1 . unL
+  to1   = L . unPar1
+
+instance Generic1 (Pow h (S n)) where
+  type Rep1 (Pow h (S n)) = Pow h n :.: h
+  from1 = Comp1 . unB
+  to1   = B . unComp1
