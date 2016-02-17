@@ -33,7 +33,7 @@ AbsTyPragmas
 -- Maintainer  :  conal@conal.net
 -- Stability   :  experimental
 -- 
--- Some data types for specializing
+-- Right-associated functor exponentiation
 ----------------------------------------------------------------------
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
