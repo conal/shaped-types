@@ -67,6 +67,7 @@ import Circat.Misc ((<~),showsUnary)
 
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
+import ShapedTypes.Scan
 
 {--------------------------------------------------------------------
     Type and basic manipulation
@@ -272,7 +273,6 @@ instance HasRep (Pow h (S n) a) where
 AbsTy(Pow h   Z   a)
 AbsTy(Pow h (S n) a)
 
-
 instance Generic1 (Pow h Z) where
   type Rep1 (Pow h Z) = Par1
   from1 = Par1 . unL
@@ -282,3 +282,6 @@ instance Generic1 (Pow h (S n)) where
   type Rep1 (Pow h (S n)) = h :.: Pow h n
   from1 = Comp1 . unB
   to1   = B . unComp1
+
+instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
+  lscan = genericLscan

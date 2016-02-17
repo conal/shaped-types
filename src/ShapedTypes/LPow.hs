@@ -68,6 +68,7 @@ import Circat.Misc ((<~),showsUnary)
 
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
+import ShapedTypes.Scan
 
 {--------------------------------------------------------------------
     Type and basic manipulation
@@ -252,3 +253,6 @@ instance Generic1 (Pow h (S n)) where
   type Rep1 (Pow h (S n)) = Pow h n :.: h
   from1 = Comp1 . unB
   to1   = B . unComp1
+
+instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
+  lscan = genericLscan
