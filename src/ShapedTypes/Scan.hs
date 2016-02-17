@@ -35,41 +35,18 @@ import GHC.Generics
 import Data.Key
 
 import Circat.Misc ((:*),Parity(..)) -- , Unop
--- import ShapedTypes.Shift (shiftR,mapAccumL)
-
--- -- | Generalize the Prelude's 'scanl' on lists
--- scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
--- scanlT op e = swap . mapAccumL (\ a b -> (a `op` b,a)) e
-
--- -- | Like 'scanlT', but drop the last element.
--- scanlTEx :: Traversable t => (b -> a -> b) -> b -> t a -> t b
--- scanlTEx op e = fst . scanlT op e
 
 type LScanTy f = forall a. Monoid a => f a -> f a :* a
 
-class {- Functor f => -} LScan f where
+class LScan f where
   lscan :: LScanTy f
   -- Temporary hack to avoid newtype-like representation.
   lscanDummy :: f a
   lscanDummy = undefined
 
--- TODO: Try removing lscanDummy and the comment.
+-- TODO: Try removing lscanDummy and the comment and recompiling with reification
 
 type LFScan f = (Functor f, LScan f)
-
-#if 0
-
--- Do we want this instance? It's sequential, and I think it matches scanlT.
-
-instance LScan (Vec n) where
-  lscan = lscanV' mempty
-  {-# INLINE lscan #-}
-
-lscanV' :: Monoid a => a -> Vec n a -> Vec n a :* a
-lscanV' x ZVec      = (ZVec, x)
-lscanV' x (a :< as) = first (x :<) (lscanV' (x <> a) as)
-{-# INLINE lscanV' #-}
-#endif
 
 -- | Scan a product of functors. See also 'lscanProd'.
 lscanProd' :: (Functor g, Monoid a)
@@ -106,15 +83,6 @@ lscanComp :: (LScan g, LFScan f, Zip g, Monoid a) =>
              g (f a) -> g (f a) :* a
 lscanComp = lscanComp' lscan lscan
 
--- lscanComp gfa  = (zipWith adjust tots' gfa', tot)
---  where
---    (gfa' ,tots)  = unzip (lscan <$> gfa)
---    (tots',tot)   = lscan tots
---    adjust (p,t)  = (p <>) <$> t
-
--- lscanInc :: (LScan f, Traversable f, Monoid b) => Unop (f b)
--- lscanInc = snd . shiftR . lscan
-
 lsums :: (LFScan f, Num b) => f b -> (f b, b)
 lsums = (fmap getSum *** getSum) . lscan . fmap Sum
 
@@ -136,14 +104,6 @@ lParities = (fmap getParity *** getParity) . lscan . fmap Parity
 iota :: (LScan f, Traversable f, Applicative f, Num b) => f b
 -- iota = lsums' (pure 1)
 iota = fst (lsums (pure 1))
-
--- lsums' :: (LScan f, Traversable f, Num b) => Unop (f b)
--- lsums' = snd . shiftR . lsums
--- -- lsums' = fmap getSum . lscanInc . fmap Sum
-
--- lproducts' :: (LScan f, Traversable f, Num b) => Unop (f b)
--- lproducts' = snd . shiftR . lproducts
--- -- lproducts' = fmap getProduct . lscanInc . fmap Product
 
 {--------------------------------------------------------------------
     Generic support
