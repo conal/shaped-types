@@ -19,8 +19,7 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.Scan
-  ( Zippable(..)
-  , LScanTy, LScan(..), LFScan
+  ( LScanTy, LScan(..), LFScan
   , lsums, lproducts, lAlls, lAnys, lParities, iota
   , lscanProd, lscanProd', lscanComp, lscanComp'
   , genericLscan
@@ -29,15 +28,11 @@ module ShapedTypes.Scan
 
 import Prelude hiding (zip,unzip,zipWith)
 
-import Data.Monoid ({- Monoid(..), -}(<>),Sum(..),Product(..),All(..),Any(..))
--- import Data.Functor ((<$>))
+import Data.Monoid ((<>),Sum(..),Product(..),All(..),Any(..))
 import Control.Arrow ((***),first)
--- import Data.Traversable (Traversable(..)) -- ,mapAccumR
-import Control.Applicative ({-Applicative(..),-}liftA2)
--- import Data.Tuple (swap)
 import GHC.Generics
 
-import TypeUnary.Vec (Vec(..),IsNat)
+import Data.Key
 
 import Circat.Misc ((:*),Parity(..)) -- , Unop
 -- import ShapedTypes.Shift (shiftR,mapAccumL)
@@ -80,11 +75,11 @@ lscanV' x (a :< as) = first (x :<) (lscanV' (x <> a) as)
 lscanProd' :: (Functor g, Monoid a)
            => LScanTy f -> LScanTy g
            -> f a :* g a -> (f a :* g a) :* a
-lscanProd' lscanF lscanG (fa,ga) = ((fa', adjust <$> ga'), adjust gx)
+lscanProd' lscanF lscanG (fa,ga) = ((fa', tweak <$> ga'), tweak gx)
  where
    (fa',fx) = lscanF fa
    (ga',gx) = lscanG ga
-   adjust   = (fx <>)
+   tweak   = (fx <>)
 
 -- | Scan a product of functors. See also 'lscanProd''.
 lscanProd :: (Functor g, Monoid a, LScan f, LScan g)
@@ -92,7 +87,7 @@ lscanProd :: (Functor g, Monoid a, LScan f, LScan g)
 lscanProd = lscanProd' lscan lscan
 
 -- | Variant of 'lscanComp' useful with size-indexed functors
-lscanComp' :: (Zippable g, Functor g, Functor f, Monoid a) =>
+lscanComp' :: (Zip g, Functor g, Functor f, Monoid a) =>
               LScanTy g -> LScanTy f
            -> g (f a) -> g (f a) :* a
 lscanComp' lscanG lscanF gfa  = (zipWith adjustl tots' gfa', tot)
@@ -100,11 +95,14 @@ lscanComp' lscanG lscanF gfa  = (zipWith adjustl tots' gfa', tot)
    (gfa' ,tots)  = unzip (lscanF <$> gfa)
    (tots',tot)   = lscanG tots
 
+unzip :: Functor f => f (a :* b) -> f a :* f b
+unzip ps = (fst <$> ps, snd <$> ps)
+
 adjustl :: (Monoid a, Functor t) => a -> t a -> t a
 adjustl p = fmap (p <>)
 
 -- | Scan a composition of functors
-lscanComp :: (LScan g, LFScan f, Zippable g, Monoid a) =>
+lscanComp :: (LScan g, LFScan f, Zip g, Monoid a) =>
              g (f a) -> g (f a) :* a
 lscanComp = lscanComp' lscan lscan
 
@@ -147,21 +145,6 @@ iota = fst (lsums (pure 1))
 -- lproducts' = snd . shiftR . lproducts
 -- -- lproducts' = fmap getProduct . lscanInc . fmap Product
 
-class Functor f => Zippable f where
-  zipWith :: (a -> b -> c) -> f a -> f b -> f c
-  zipWith h as bs = uncurry h <$> zip as bs
-  zip :: f a -> f b -> f (a,b)
-  zip = zipWith (,)
-  {-# MINIMAL zip | zipWith #-}
-
-instance IsNat n => Zippable (Vec n) where zipWith = liftA2
-
--- zipA :: Applicative f => (f a, f b) -> f (a,b)
--- zipA = uncurry (liftA2 (,))
-
-unzip :: Functor f => f (a :* b) -> f a :* f b
-unzip ps = (fst <$> ps, snd <$> ps)
-
 {--------------------------------------------------------------------
     Generic support
 --------------------------------------------------------------------}
@@ -185,7 +168,7 @@ instance (LScan f, LScan g) => LScan (f :+: g) where
 instance (LScan f, LFScan g) => LScan (f :*: g) where
   lscan (fa :*: ga) = first (uncurry (:*:)) (lscanProd (fa,ga))
 
-instance (LScan g, LFScan f, Zippable g) => LScan (g :.: f) where
+instance (LScan g, LFScan f, Zip g) => LScan (g :.: f) where
   lscan (Comp1 gfa) = first Comp1 (lscanComp gfa)
 
 instance LScan f => LScan (M1 i c f) where
