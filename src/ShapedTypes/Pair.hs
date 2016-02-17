@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DeriveTraversable  #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies       #-}
@@ -34,11 +36,11 @@
 module ShapedTypes.Pair (Pair(..)) where
 
 import Prelude hiding (id,(.))
-
--- import Data.Typeable (Typeable)
--- import Data.Data (Data)
-
+import Data.Monoid ({-Monoid(..),-}(<>))
 import Control.Category (id,(.))
+import Data.Typeable (Typeable)
+import Data.Data (Data)
+import GHC.Generics (Generic,Generic1) 
 
 import Circat.Rep
 
@@ -47,9 +49,11 @@ import Circat.Classes (BottomCat(..),IfCat(..))
 import Circat.Circuit
 #include "Circat/AbsTy.inc"
 
+import ShapedTypes.Scan
+
 infixl 1 :#
 -- | Uniform pairs
-data Pair a = a :# a -- deriving (Functor,Traversable) -- ,Eq,Show,Typeable,Data,Generic,Generic1
+data Pair a = a :# a deriving (Functor,Traversable,Eq,Show,Typeable,Data,Generic,Generic1)
 
 -- TODO: retry with deriving
 
@@ -57,14 +61,6 @@ type instance Rep (Pair a) = (a,a)
 instance HasRep (Pair a) where
   repr (a :# a') = (a,a')
   abst (a,a') = (a :# a')
-
--- deriving instance Functor     Pair
-
-instance Functor Pair where
-  fmap f (a :# b) = f a :# f b
-  {-# INLINABLE fmap #-}
-
-deriving instance Traversable Pair
 
 -- The derived foldMap inserts a mempty (in GHC 7.0.4).
 instance Foldable Pair where
@@ -124,3 +120,7 @@ instance BottomCat (:>) a => BottomCat (:>) (Pair a) where
 instance IfCat (:>) a => IfCat (:>) (Pair a)
  where
    ifC = abstC . pairIf . second (twiceP reprC)
+
+instance LScan Pair where
+  lscan (a :# b) = (mempty :# a, a <> b)
+  {-# INLINE lscan #-}
