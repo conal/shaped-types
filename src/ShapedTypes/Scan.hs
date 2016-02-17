@@ -1,7 +1,15 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE GADTs, FlexibleInstances, FlexibleContexts, Rank2Types #-}
-{-# LANGUAGE TypeFamilies, TypeOperators #-}
-{-# LANGUAGE ConstraintKinds, LambdaCase, EmptyCase #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE ConstraintKinds     #-}
+{-# LANGUAGE EmptyCase           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE Rank2Types          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
+
 {-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -10,13 +18,15 @@
 ----------------------------------------------------------------------
 -- |
 -- Module      :  ShapedTypes.Scan
--- Copyright   :  (c) 2014 Tabula, Inc.
+-- Copyright   :  (c) 2016 Conal Elliott
 -- 
 -- Maintainer  :  conal@tabula.com
 -- Stability   :  experimental
 -- 
 -- Parallel scan
 ----------------------------------------------------------------------
+
+{-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
 module ShapedTypes.Scan
   ( LScanTy, LScan(..), LFScan
@@ -72,8 +82,13 @@ lscanComp' lscanG lscanF gfa  = (zipWith adjustl tots' gfa', tot)
    (gfa' ,tots)  = unzip (lscanF <$> gfa)
    (tots',tot)   = lscanG tots
 
-unzip :: Functor f => f (a :* b) -> f a :* f b
+unzip :: forall f a b. Functor f => f (a :* b) -> f a :* f b
 unzip ps = (fst <$> ps, snd <$> ps)
+
+-- unzip ps = (fmapF fst ps, fmapF snd ps)
+--  where
+--    fmapF :: forall u v. (u -> v) -> f u -> f v
+--    fmapF = fmap
 
 adjustl :: (Monoid a, Functor t) => a -> t a -> t a
 adjustl p = fmap (p <>)
@@ -85,24 +100,30 @@ lscanComp = lscanComp' lscan lscan
 
 lsums :: (LFScan f, Num b) => f b -> (f b, b)
 lsums = (fmap getSum *** getSum) . lscan . fmap Sum
+{-# INLINABLE lsums #-}
 
 lproducts :: (LFScan f, Num b) => f b -> f b :* b
 lproducts = (fmap getProduct *** getProduct) . lscan . fmap Product
+{-# INLINABLE lproducts #-}
 
 lAlls :: LFScan f => f Bool -> (f Bool, Bool)
 lAlls = (fmap getAll *** getAll) . lscan . fmap All
+{-# INLINABLE lAlls #-}
 
 lAnys :: LFScan f => f Bool -> (f Bool, Bool)
 lAnys = (fmap getAny *** getAny) . lscan . fmap Any
+{-# INLINABLE lAnys #-}
 
 lParities :: LFScan f => f Bool -> (f Bool, Bool)
 lParities = (fmap getParity *** getParity) . lscan . fmap Parity
+{-# INLINABLE lParities #-}
+
+-- TODO: Refactor lsums, lproducts, etc, using Newtype.
 
 -- Variants 
 
 -- | Numbers from 0 to n-1. Named for APL iota operation (but 0 based).
 iota :: (LScan f, Traversable f, Applicative f, Num b) => f b
--- iota = lsums' (pure 1)
 iota = fst (lsums (pure 1))
 
 {--------------------------------------------------------------------
