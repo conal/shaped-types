@@ -41,7 +41,7 @@
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
 module ShapedTypes.FFT
-  ( FFT(..), DFTTy, genericFft
+  ( FFT(..), DFTTy, genericFft, GFFT
   -- Temporary while debugging
   , twiddle, twiddles, omega, cis
   ) where
