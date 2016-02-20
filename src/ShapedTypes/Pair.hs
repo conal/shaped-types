@@ -38,18 +38,25 @@ module ShapedTypes.Pair (Pair(..)) where
 import Prelude hiding (id,(.))
 import Data.Monoid ({-Monoid(..),-}(<>))
 import Control.Category (id,(.))
+import Control.Applicative (liftA2)
 import Data.Typeable (Typeable)
 import Data.Data (Data)
 import GHC.Generics (Generic,Generic1) 
+import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
+
+import Data.Key
 
 import Circat.Rep
+import Circat.ApproxEq
 
 import Circat.Category (Uncurriable(..),twiceP,(***),(&&&),second)
 import Circat.Classes (BottomCat(..),IfCat(..))
 import Circat.Circuit
 #include "Circat/AbsTy.inc"
 
+import ShapedTypes.Sized
 import ShapedTypes.Scan
+import ShapedTypes.FFT
 
 infixl 1 :#
 -- | Uniform pairs
@@ -61,6 +68,10 @@ type instance Rep (Pair a) = (a,a)
 instance HasRep (Pair a) where
   repr (a :# a') = (a,a')
   abst (a,a') = (a :# a')
+
+{--------------------------------------------------------------------
+    Standard type class instances
+--------------------------------------------------------------------}
 
 -- The derived foldMap inserts a mempty (in GHC 7.0.4).
 instance Foldable Pair where
@@ -82,6 +93,53 @@ instance Monad Pair where
 joinP :: Pair (Pair a) -> Pair a
 joinP ((a :# _) :# (_ :# d)) = a :# d
 {-# INLINABLE joinP #-}
+
+instance Arbitrary a => Arbitrary (Pair a) where
+  arbitrary = liftA2 (:#) arbitrary arbitrary
+  shrink (x :# y) = [ x' :# y'  | (x',y') <- shrink (x,y) ]
+
+instance CoArbitrary a => CoArbitrary (Pair a) where
+  coarbitrary (x :# y) = coarbitrary x . coarbitrary y
+
+{--------------------------------------------------------------------
+    keys package
+--------------------------------------------------------------------}
+
+type instance Key Pair = Bool
+
+instance Keyed Pair where
+  mapWithKey q = \ (a :# b) -> q False a :# q True b
+
+instance Zip Pair where zipWith = liftA2
+
+instance ZipWithKey Pair
+
+instance Lookup Pair where lookup k t = Just (index t k)
+
+instance Indexable Pair where
+  index (a :# b) k = if k then b else a
+
+instance Adjustable Pair where
+  adjust f k (a :# b) = if k then a :# f b else f a :# b
+
+{--------------------------------------------------------------------
+    shaped-types instances
+--------------------------------------------------------------------}
+
+instance ApproxEq a => ApproxEq (Pair a) where (=~) = approxEqFoldable
+
+instance Sized Pair where
+  size = const 2
+  {-# INLINE size #-}
+
+instance LScan Pair where
+  lscan (a :# b) = (mempty :# a, a <> b)
+  {-# INLINE lscan #-}
+
+-- Radix 2 butterfly
+instance FFT Pair Pair where
+  fft (a :# b) = (a + b) :# (a - b)
+  {-# INLINE fft #-}
 
 {--------------------------------------------------------------------
     Circuit support
@@ -120,7 +178,3 @@ instance BottomCat (:>) a => BottomCat (:>) (Pair a) where
 instance IfCat (:>) a => IfCat (:>) (Pair a)
  where
    ifC = abstC . pairIf . second (twiceP reprC)
-
-instance LScan Pair where
-  lscan (a :# b) = (mempty :# a, a <> b)
-  {-# INLINE lscan #-}

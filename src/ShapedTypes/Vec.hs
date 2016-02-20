@@ -42,16 +42,18 @@ module ShapedTypes.Vec (Vec(..)) where
 
 import Prelude hiding (id,(.))
 import Circat.Category (id,(.),(***),(&&&),second,twiceP,exl,exr)
+import Control.Applicative (liftA2)
+import Data.Monoid ((<>))
+import GHC.Generics (Generic1(..),U1(..),Par1(..),(:*:)(..))
 
 import Circat.Classes (unitIf)
-import Data.Monoid ((<>))
-import Control.Applicative (liftA2)
-
 import Circat.Rep
 import Circat.Misc (Unit,(:*))
+import Circat.ApproxEq
 
--- import TypeUnary.TyNat
+import ShapedTypes.Sized
 import ShapedTypes.Nat
+import ShapedTypes.Scan (LScan(..),lscanTraversable)
 
 AbsTyImports
 import Circat.Circuit                   -- TODO: specific imports
@@ -118,6 +120,20 @@ instance Traversable (Vec n) => Traversable (Vec (S n)) where
   {-# INLINABLE traverse #-}
   SPECS(Traversable)
 
+{--------------------------------------------------------------------
+   Other representations
+--------------------------------------------------------------------}
+
+instance Generic1 (Vec Z) where
+  type Rep1 (Vec Z) = U1
+  from1 ZVec = U1
+  to1 U1 = ZVec
+
+instance Generic1 (Vec (S n)) where
+  type Rep1 (Vec (S n)) = Par1 :*: Vec n
+  from1 (a :< as) = Par1 a :*: as
+  to1 (Par1 a :*: as) = a :< as
+
 type instance Rep (Vec Z a) = ()
 instance HasRep (Vec Z a) where
   repr ZVec = ()
@@ -128,6 +144,18 @@ instance HasRep (Vec (S n) a) where
   repr (a :< as) = (a, as)
   abst (a, as) = (a :< as)
 
+{--------------------------------------------------------------------
+    shaped-types instances
+--------------------------------------------------------------------}
+
+instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
+  (=~) = approxEqFoldable
+
+instance (Foldable (Vec n), Applicative (Vec n)) => Sized (Vec n) where
+  size = const (length (pure () :: Vec n ()))
+
+-- Vec is terrible for generic lscan, so scan sequentially.
+instance Traversable (Vec n) => LScan (Vec n) where lscan = lscanTraversable
 
 {--------------------------------------------------------------------
     Circuit support

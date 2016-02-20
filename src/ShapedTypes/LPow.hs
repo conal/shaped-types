@@ -56,16 +56,18 @@ module ShapedTypes.LPow where
 AbsTyImports
 
 import Data.Function (on)
+import Control.Arrow (first)
 import Control.Applicative (liftA2)
 import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
 
--- import Data.Functor.Classes (Eq1(..),Ord1(..),Show1(..),showsUnary,showsUnary1)
 import Circat.Rep
 import Circat.Misc ((<~),showsUnary)
+import Circat.ApproxEq
 
+import ShapedTypes.Sized
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
 import ShapedTypes.Scan
@@ -230,20 +232,6 @@ instance (Traversable (Pow n h), Keyed (Pow n h)) => TraversableWithKey (Pow n h
     Other representations
 --------------------------------------------------------------------}
 
-type instance Rep (Pow h Z a) = a
-instance HasRep (Pow h Z a) where
-  repr (L a) = a
-  abst = L
-
-type instance Rep (Pow h (S n) a) = Pow h n (h a)
-instance HasRep (Pow h (S n) a) where
-  repr (B t) = t
-  abst t = B t
-
-AbsTy(Pow h   Z   a)
-AbsTy(Pow h (S n) a)
-
-
 instance Generic1 (Pow h Z) where
   type Rep1 (Pow h Z) = Par1
   from1 = Par1 . unL
@@ -254,5 +242,50 @@ instance Generic1 (Pow h (S n)) where
   from1 = Comp1 . unB
   to1   = B . unComp1
 
+type instance Rep (Pow h Z a) = a
+instance HasRep (Pow h Z a) where
+  repr (L a) = a
+  abst = L
+
+type instance Rep (Pow h (S n) a) = Pow h n (h a)
+instance HasRep (Pow h (S n) a) where
+  repr (B t) = t
+  abst t = B t
+
+{--------------------------------------------------------------------
+    shaped-types instances
+--------------------------------------------------------------------}
+
+instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where (=~) = approxEqFoldable
+
+#if 0
+instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
+      => Sized (Pow h n) where
+  size = const (size (pure () :: h ()) ^ size (pure () :: Vec n ()))
+#else
+instance (Generic1 (Pow h n), Sized (Rep1 (Pow h n))) => 
+         Sized (Pow h n) where size = genericSize
+#endif
+-- I don't currently support exponentiation, so use genericSize, which repeatedly multiplies
+-- TODO: Add an exponentiation prim. Which one?
+
+#if 0
 instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
   lscan = genericLscan
+  {-# INLINE lscan #-}
+#else
+instance LScan (Pow h Z) where
+  lscan (L a) = (L mempty, a)
+  {-# INLINE lscan #-}
+instance (LFScan h, LScan (Pow h n), Applicative (Pow h n))
+      => LScan (Pow h (S n)) where
+  lscan (B ts) = first B (lscanComp ts)
+  {-# INLINE lscan #-}
+#endif
+
+{--------------------------------------------------------------------
+    Circuit support
+--------------------------------------------------------------------}
+
+AbsTy(Pow h   Z   a)
+AbsTy(Pow h (S n) a)

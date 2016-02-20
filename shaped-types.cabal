@@ -24,8 +24,9 @@ Library
                      , ghc-prim
                      , QuickCheck >= 2.7.3
                      , keys
+                     , TypeCompose
                      , circat
-                     , lambda-ccc
+--                      , lambda-ccc
 
 -- I need transformers >= 0.4 for Data.Functor.Classes (Eq1 etc).
 -- The Eq1 interface changed at 0.5, and I think hermit uses 0.4.
@@ -35,23 +36,25 @@ Library
 -- TODO: drop monomorph
 
   Exposed-Modules:     
-                       ShapedTypes.Pair
+                       ShapedTypes.Sized
                        ShapedTypes.Nat
+                       ShapedTypes.Pair
                        ShapedTypes.Vec
                        ShapedTypes.RPow
                        ShapedTypes.LPow
                        ShapedTypes.Scan
+--                        ShapedTypes.ApproxEq
+--                        ShapedTypes.Complex
+                       ShapedTypes.FFT
 
 --                        ShapedTypes.Interactive
 --                        ShapedTypes.Plugin
   ghc-options:         -Wall
-                       -fplugin=LambdaCCC.Plugin -dcore-lint
-
+--                        -fplugin=LambdaCCC.Plugin -dcore-lint
 --                        -fplugin-opt=LambdaCCC.Reify:verbose
 --                        -ddump-to-file -dverbose-core2core
---                        -dppr-case-as-let -dsuppress-idinfo
---                        -dsuppress-uniques -dsuppress-module-prefixes
-
+                       -dppr-case-as-let -dsuppress-idinfo
+                       -dsuppress-uniques -dsuppress-module-prefixes
                        -- -dsuppress-type-applications
                        -- -dsuppress-all
 

@@ -26,10 +26,11 @@
 -- Parallel scan
 ----------------------------------------------------------------------
 
-{-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
+-- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
 module ShapedTypes.Scan
   ( LScanTy, LScan(..), LFScan
+  , lscanTraversable
   , lsums, lproducts, lAlls, lAnys, lParities, iota
   , lscanProd, lscanProd', lscanComp, lscanComp'
   , genericLscan
@@ -40,6 +41,8 @@ import Prelude hiding (zip,unzip,zipWith)
 
 import Data.Monoid ((<>),Sum(..),Product(..),All(..),Any(..))
 import Control.Arrow ((***),first)
+import Data.Traversable (mapAccumL)
+import Data.Tuple (swap)
 import GHC.Generics
 
 import Data.Key
@@ -55,6 +58,13 @@ class LScan f where
   lscanDummy = undefined
 
 -- TODO: Try removing lscanDummy and the comment and recompiling with reification
+
+-- | Traversable version (sequential)
+scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
+scanlT op e = swap . mapAccumL (\ a b -> (a `op` b,a)) e
+
+lscanTraversable :: Traversable t => LScanTy t
+lscanTraversable = scanlT mappend mempty
 
 type LFScan f = (Functor f, LScan f)
 
