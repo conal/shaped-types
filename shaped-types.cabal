@@ -36,6 +36,7 @@ Library
 -- TODO: drop monomorph
 
   Exposed-Modules:     
+                       ShapedTypes.Misc
                        ShapedTypes.Sized
                        ShapedTypes.Nat
                        ShapedTypes.Pair

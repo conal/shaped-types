@@ -287,15 +287,16 @@ instance HasRep (Pow h (S n) a) where
     shaped-types instances
 --------------------------------------------------------------------}
 
-instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where (=~) = approxEqFoldable
+instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where
+  (=~) = approxEqFoldable
 
 #if 0
 instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
       => Sized (Pow h n) where
   size = const (size (pure () :: h ()) ^ size (pure () :: Vec n ()))
 #else
-instance (Generic1 (Pow h n), Sized (Rep1 (Pow h n))) => 
-         Sized (Pow h n) where size = genericSize
+instance (Generic1 (Pow h n), Sized (Rep1 (Pow h n))) => Sized (Pow h n) where
+  size = genericSize
 #endif
 -- I don't currently support exponentiation, so use genericSize, which repeatedly multiplies
 -- TODO: Add an exponentiation prim. Which one?

@@ -19,13 +19,13 @@
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- #define TESTING
 
 #ifdef TESTING
 {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
 #endif
+
+#define GenericPowFFT
 
 ----------------------------------------------------------------------
 -- |
@@ -54,12 +54,15 @@ import Test.QuickCheck (quickCheck)
 import Test.QuickCheck.All (quickCheckAll)
 #endif
 
-import Circat.Misc (transpose,Unop,(<~))
+import Circat.Misc (transpose,Unop)
 import Circat.Complex
 
+import ShapedTypes.Misc
 import ShapedTypes.Sized
 import ShapedTypes.Scan (LScan,lproducts) -- ,iota,lsums
+#ifndef GenericPowFFT
 import ShapedTypes.Nat
+#endif
 import qualified ShapedTypes.LPow as L
 import qualified ShapedTypes.RPow as R
 
@@ -113,15 +116,6 @@ powers = fst . lproducts . pure
     Generic support
 --------------------------------------------------------------------}
 
--- | Apply a unary function within the 'O' constructor.
-inO :: (g (f a) -> g' (f' a')) -> ((g :.: f) a -> (g' :.: f') a')
-inO = Comp1 <~ unComp1
-
--- | Apply a binary function within the 'Comp1' constructor.
-inO2 :: (  g (f a)   -> g' (f' a')     -> g'' (f'' a''))
-        -> ((g :.: f) a -> (g' :.: f') a' -> (g'' :.: f'') a'')
-inO2 = inO <~ unComp1
-
 instance FFT Par1 Par1 where
   fft = id
 
@@ -129,12 +123,13 @@ instance ( Applicative f , Traversable f , Traversable g
          , Applicative f', Applicative g', Traversable g'
          , FFT f f', FFT g g', LScan f, LScan g', Sized f, Sized g' )
       => FFT (g :.: f) (f' :.: g') where
-  -- fft = Comp1 . transpose . fmap fft . twiddle . transpose . fmap fft . transpose . unComp1
-  -- fft = Comp1 . traverse fft . twiddle . traverse fft . transpose . unComp1
-  fft = inO (traverse fft . twiddle . traverse fft . transpose)
+  fft = inComp (traverse fft . twiddle . traverse fft . transpose)
   {-# INLINE fft #-}
 
 #if 0
+  fft = Comp1 . transpose . fmap fft . twiddle . transpose . fmap fft . transpose . unComp1
+  fft = Comp1 . traverse fft . twiddle . traverse fft . transpose . unComp1
+
 -- Types in fft for (g :. f):
   unComp1   :: (g :. f) a -> g  (f  a)
   transpose :: g  (f  a)  -> f  (g  a)
@@ -148,18 +143,26 @@ instance ( Applicative f , Traversable f , Traversable g
 
 -- | Generic FFT
 genericFft :: (Generic1 f, Generic1 f', FFT (Rep1 f) (Rep1 f')) => DFTTy f f'
-genericFft = to1 . fft . from1
+genericFft = inGeneric1 fft
+
+type GFFT f f' = (Generic1 (f), Generic1 (f'), FFT (Rep1 (f)) (Rep1 (f')))
+
+#define GenericFFT(f,g) instance GFFT (f)(g) => FFT (f)(g) where fft = genericFft
 
 {--------------------------------------------------------------------
     Specialized FFT instances.
 --------------------------------------------------------------------}
 
 -- I put the specific instances here in order to avoid an import loop between
--- LPow and RPow.
--- I'd still like to find an elegant FFT that maps f to f.
+-- LPow and RPow. I'd still like to find an elegant FFT that maps f to f, and
+-- then move the instances to RPow and LPow.
 
--- genericFft :: (Generic1 f, Generic1 f', FFT (Rep1 f) (Rep1 f')) => DFTTy f f'
+#ifdef GenericPowFFT
 
+GenericFFT(R.Pow h n, L.Pow k n)
+GenericFFT(L.Pow h n, R.Pow k n)
+
+#else
 type ATS f = (Applicative f, Traversable f, Sized f)
 
 instance FFT (R.Pow h Z) (L.Pow h Z) where
@@ -183,6 +186,7 @@ instance ( ATS h, ATS h', ATS (R.Pow h' n), ATS (L.Pow h n), LScan (R.Pow h' n),
   {-# INLINE fft #-}
 
 -- TODO: Revisit these constraints, which don't quite have the duality I expected.
+#endif
 
 #ifdef TESTING
 
@@ -371,17 +375,3 @@ runTests = $quickCheckAll
 
 -- end of tests
 #endif
-
-{--------------------------------------------------------------------
-    Orphans
---------------------------------------------------------------------}
-
--- TODO: Remove when GHC.Generics gets these instances (and more).
--- See <https://ghc.haskell.org/trac/ghc/ticket/9043>.
-
-instance (Functor g, Functor f) => Functor (g :.: f) where
-  fmap = inO . fmap . fmap
-
-instance (Applicative g, Applicative f) => Applicative (g :.: f) where
-  pure  = Comp1 . pure . pure
-  (<*>) = (inO2.liftA2) (<*>)
