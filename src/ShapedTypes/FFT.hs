@@ -156,10 +156,9 @@ type GFFT f f' = (Generic1 (f), Generic1 (f'), FFT (Rep1 (f)) (Rep1 (f')))
 dftTraversable :: forall f a. (AFS f, Traversable f, RealFloat a) => Unop (f (Complex a))
 dftTraversable xs = out <$> indices
  where
-   out k = sum (zipWith (\ n x -> x * ok^n) indices xs)
-    where ok = om ^ k
+   out k   = sum (zipWith (\ n x -> x * ok^n) indices xs) where ok = om ^ k
    indices = iota :: f Int
-   om = omega (tySize(f))
+   om      = omega (tySize(f))
 
 -- TODO: Replace Applicative with Zippable
 
