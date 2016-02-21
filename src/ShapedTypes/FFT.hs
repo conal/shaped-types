@@ -152,8 +152,7 @@ type GFFT f f' = (Generic1 (f), Generic1 (f'), FFT (Rep1 (f)) (Rep1 (f')))
 
 #define GenericFFT(f,g) instance GFFT (f)(g) => FFT (f)(g) where fft = genericFft
 
--- Generalization of 'dft' to traversables. Warning: use only on zippy
--- applicatives (not on []).
+-- Generalization of 'dft' to traversables.
 dftTraversable :: forall f a. (AFS f, Traversable f, RealFloat a) => Unop (f (Complex a))
 dftTraversable xs = out <$> indices
  where
