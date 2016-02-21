@@ -46,7 +46,7 @@ module ShapedTypes.FFT
   , twiddle, twiddles, omega, cis
   ) where
 
-import Control.Applicative (liftA2)
+import Prelude hiding (zipWith)
 import GHC.Generics hiding (C)
 
 #ifdef TESTING
@@ -54,15 +54,18 @@ import Test.QuickCheck (quickCheck)
 import Test.QuickCheck.All (quickCheckAll)
 #endif
 
+import Data.Key
+
 import Circat.Misc (transpose,Unop)
 import Circat.Complex
 
 import ShapedTypes.Misc
 import ShapedTypes.Sized
-import ShapedTypes.Scan (LScan,lproducts) -- ,iota,lsums
+import ShapedTypes.Scan (LScan,lproducts,iota) -- , lsums
 #ifndef GenericPowFFT
 import ShapedTypes.Nat
 #endif
+import ShapedTypes.Vec
 import qualified ShapedTypes.LPow as L
 import qualified ShapedTypes.RPow as R
 
@@ -81,10 +84,10 @@ class FFT f f' | f -> f' where
 -- #define tySize(f) (size (undefined :: (f) ()))
 #define tySize(f) (size (pure () :: (f) ()))
 
-type AFS h = (Applicative h, Foldable h, Sized h, LScan h)
+type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
 
 twiddle :: forall g f a. (AFS g, AFS f, RealFloat a) => Unop (g (f (Complex a)))
-twiddle = (liftA2.liftA2) (*) (twiddles (tySize(g :.: f)))
+twiddle = (zipWith.zipWith) (*) (twiddles (tySize(g :.: f)))
 {-# INLINE twiddle #-}
 
 -- Twiddle factors.
@@ -119,8 +122,8 @@ powers = fst . lproducts . pure
 instance FFT Par1 Par1 where
   fft = id
 
-instance ( Applicative f , Traversable f , Traversable g
-         , Applicative f', Applicative g', Traversable g'
+instance ( Applicative f , Zip f,  Traversable f , Traversable g
+         , Applicative f', Zip g', Applicative g', Traversable g'
          , FFT f f', FFT g g', LScan f, LScan g', Sized f, Sized g' )
       => FFT (g :.: f) (f' :.: g') where
   fft = inComp (traverse fft . twiddle . traverse fft . transpose)
@@ -149,21 +152,41 @@ type GFFT f f' = (Generic1 (f), Generic1 (f'), FFT (Rep1 (f)) (Rep1 (f')))
 
 #define GenericFFT(f,g) instance GFFT (f)(g) => FFT (f)(g) where fft = genericFft
 
+-- Generalization of 'dft' to traversables. Warning: use only on zippy
+-- applicatives (not on []).
+dftTraversable :: forall f a. (AFS f, Traversable f, RealFloat a) => Unop (f (Complex a))
+dftTraversable xs = out <$> indices
+ where
+   out k = sum (zipWith (\ n x -> x * ok^n) indices xs)
+    where ok = om ^ k
+   indices = iota :: f Int
+   om = omega (tySize(f))
+
+-- TODO: Replace Applicative with Zippable
+
+-- Perhaps dftTraversable isn't very useful. Its result and argument types match, unlike fft.
+
 {--------------------------------------------------------------------
     Specialized FFT instances.
 --------------------------------------------------------------------}
 
 -- I put the specific instances here in order to avoid an import loop between
--- LPow and RPow. I'd still like to find an elegant FFT that maps f to f, and
--- then move the instances to RPow and LPow.
+-- the LPow and RPow modules. I'd still like to find an elegant FFT that maps f
+-- to f, and then move the instances to RPow and LPow.
 
 #ifdef GenericPowFFT
 
+instance (Applicative (Vec n), Zip (Vec n), Traversable (Vec n)) =>
+         FFT (Vec n) (Vec n) where fft = dftTraversable
+
+-- GenericFFT(Vec     n, Vec     n)
 GenericFFT(R.Pow h n, L.Pow k n)
 GenericFFT(L.Pow h n, R.Pow k n)
 
 #else
 type ATS f = (Applicative f, Traversable f, Sized f)
+
+-- TODO: Vec instance
 
 instance FFT (R.Pow h Z) (L.Pow h Z) where
   fft = L.L . R.unL
@@ -201,20 +224,6 @@ dft xs = [ sum [ x * ok^n | x <- xs | n <- [0 :: Int ..] ]
  where
    om = omega (length xs)
 
--- Generalization of 'dft' to traversables. Warning: use only on zippy
--- applicatives (not on []).
-dftT :: forall f a. (AFS f, Traversable f, RealFloat a) => Unop (f (Complex a))
-dftT xs = out <$> indices
- where
-   out k = sum (liftA2 (\ n x -> x * ok^n) indices xs)
-    where ok = om ^ k
-   indices = iota :: f Int
-   om = omega (tySize(f))
-
--- TODO: Replace Applicative with Zippable
-
--- Perhaps dftT isn't very useful. Its result and argument types match, unlike fft.
-
 dftQ :: forall f a. (AFS f, RealFloat a) => Unop (f (Complex a))
 dftQ as = (<.> as) <$> twiddles (tySize(L.Tree N1 :. Pair))
 {-# INLINE dftQ #-}
@@ -222,7 +231,7 @@ dftQ as = (<.> as) <$> twiddles (tySize(L.Tree N1 :. Pair))
 -- Binary dot product
 infixl 7 <.>
 (<.>) :: (Foldable f, Applicative f, Num a) => f a -> f a -> a
-u <.> v = sum (liftA2 (*) u v)
+u <.> v = sum (zipWith (*) u v)
 
 {--------------------------------------------------------------------
     Tests
