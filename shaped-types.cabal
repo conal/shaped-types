@@ -26,14 +26,10 @@ Library
                      , keys
                      , TypeCompose
                      , circat
+
 --                      , lambda-ccc
 
--- I need transformers >= 0.4 for Data.Functor.Classes (Eq1 etc).
--- The Eq1 interface changed at 0.5, and I think hermit uses 0.4.
-
 -- TODO: can I drop ghc-prim and still compile with the reification plugin?
-
--- TODO: drop monomorph
 
   Exposed-Modules:     
                        ShapedTypes.Misc
@@ -43,15 +39,18 @@ Library
                        ShapedTypes.Vec
                        ShapedTypes.RPow
                        ShapedTypes.LPow
+                       ShapedTypes.Linear
                        ShapedTypes.Scan
+                       ShapedTypes.FFT
 --                        ShapedTypes.ApproxEq
 --                        ShapedTypes.Complex
-                       ShapedTypes.FFT
 
 --                        ShapedTypes.Interactive
 --                        ShapedTypes.Plugin
   ghc-options:         -Wall
+
 --                        -fplugin=LambdaCCC.Plugin -dcore-lint
+
 --                        -fplugin-opt=LambdaCCC.Reify:verbose
 --                        -ddump-to-file -dverbose-core2core
                        -dppr-case-as-let -dsuppress-idinfo
@@ -59,3 +58,5 @@ Library
                        -- -dsuppress-type-applications
                        -- -dsuppress-all
 
+
+-- TODO: Add a flag for whether to compile with reification.
