@@ -64,8 +64,8 @@ data Pair a = a :# a deriving (Functor,Traversable,Eq,Show,Typeable,Data,Generic
 
 -- TODO: retry with deriving
 
-type instance Rep (Pair a) = (a,a)
 instance HasRep (Pair a) where
+  type Rep (Pair a) = (a,a)
   repr (a :# a') = (a,a')
   abst (a,a') = (a :# a')
 

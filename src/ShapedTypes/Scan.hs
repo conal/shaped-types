@@ -84,7 +84,7 @@ lscanProd :: (Functor g, Monoid a, LScan f, LScan g)
 lscanProd = lscanProd' lscan lscan
 
 -- | Variant of 'lscanComp' useful with size-indexed functors
-lscanComp' :: (Zip g, Functor g, Functor f, Monoid a) =>
+lscanComp' :: (Zip g, Functor f, Monoid a) =>
               LScanTy g -> LScanTy f
            -> g (f a) -> g (f a) :* a
 lscanComp' lscanG lscanF gfa  = (zipWith adjustl tots' gfa', tot)

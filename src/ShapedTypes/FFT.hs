@@ -25,7 +25,7 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
 #endif
 
-#define GenericPowFFT
+-- #define GenericPowFFT
 
 ----------------------------------------------------------------------
 -- |
@@ -41,7 +41,7 @@
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
 module ShapedTypes.FFT
-  ( FFT(..), DFTTy, genericFft, GFFT
+  ( FFT(..), DFTTy, genericFft, dftTraversable, GFFT
   -- Temporary while debugging
   , twiddle, twiddles, omega, cis
   ) where
@@ -64,8 +64,9 @@ import ShapedTypes.Sized
 import ShapedTypes.Scan (LScan,lproducts,iota) -- , lsums
 #ifndef GenericPowFFT
 import ShapedTypes.Nat
-#endif
+#else
 import ShapedTypes.Vec
+#endif
 import qualified ShapedTypes.LPow as L
 import qualified ShapedTypes.RPow as R
 
@@ -159,6 +160,7 @@ dftTraversable xs = out <$> indices
    out k   = sum (zipWith (\ n x -> x * ok^n) indices xs) where ok = om ^ k
    indices = iota :: f Int
    om      = omega (tySize(f))
+{-# INLINABLE dftTraversable #-}
 
 -- TODO: Replace Applicative with Zippable
 
@@ -175,14 +177,16 @@ dftTraversable xs = out <$> indices
 #ifdef GenericPowFFT
 
 instance (Applicative (Vec n), Zip (Vec n), Traversable (Vec n)) =>
-         FFT (Vec n) (Vec n) where fft = dftTraversable
+         FFT (Vec n) (Vec n) where
+  fft = dftTraversable
+  {-# INLINE fft #-}
 
 -- GenericFFT(Vec     n, Vec     n)
 GenericFFT(R.Pow h n, L.Pow k n)
 GenericFFT(L.Pow h n, R.Pow k n)
 
 #else
-type ATS f = (Applicative f, Traversable f, Sized f)
+type ATS f = (Applicative f, Zip f, Traversable f, Sized f)
 
 -- TODO: Vec instance
 

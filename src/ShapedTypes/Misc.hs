@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE CPP, TypeOperators #-}
 {-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -22,7 +22,9 @@ module ShapedTypes.Misc where
 
 -- TODO: explicit exports
 
+#if __GLASGOW_HASKELL__ < 800
 import Control.Applicative (liftA2)
+#endif
 
 import Circat.Misc ((<~))
 import GHC.Generics hiding (C)
@@ -30,6 +32,8 @@ import GHC.Generics hiding (C)
 -- | Operate inside a Generic1
 inGeneric1 :: (Generic1 f, Generic1 g) => (Rep1 f a -> Rep1 g b) -> (f a -> g b)
 inGeneric1 = to1 <~ from1
+
+#if __GLASGOW_HASKELL__ < 800
 
 {--------------------------------------------------------------------
     Orphans
@@ -44,6 +48,8 @@ instance (Functor g, Functor f) => Functor (g :.: f) where
 instance (Applicative g, Applicative f) => Applicative (g :.: f) where
   pure  = Comp1 . pure . pure
   (<*>) = (inComp2.liftA2) (<*>)
+
+#endif
 
 -- | Apply a unary function within the 'O' constructor.
 inComp :: (g (f a) -> g' (f' a')) -> ((g :.: f) a -> (g' :.: f') a')

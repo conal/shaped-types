@@ -46,6 +46,8 @@ import Control.Applicative (liftA2)
 import Data.Monoid ((<>))
 import GHC.Generics (Generic1(..),U1(..),Par1(..),(:*:)(..))
 
+import Data.Key
+
 import Circat.Classes (unitIf)
 import Circat.Rep
 import Circat.Misc (Unit,(:*))
@@ -54,6 +56,7 @@ import Circat.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Nat
 import ShapedTypes.Scan (LScan(..),lscanTraversable)
+-- import ShapedTypes.FFT
 
 AbsTyImports
 import Circat.Circuit                   -- TODO: specific imports
@@ -134,15 +137,49 @@ instance Generic1 (Vec (S n)) where
   from1 (a :< as) = Par1 a :*: as
   to1 (Par1 a :*: as) = a :< as
 
-type instance Rep (Vec Z a) = ()
 instance HasRep (Vec Z a) where
+  type Rep (Vec Z a) = ()
   repr ZVec = ()
   abst () = ZVec
 
-type instance Rep (Vec (S n) a) = (a,Vec n a)
 instance HasRep (Vec (S n) a) where
+  type Rep (Vec (S n) a) = (a,Vec n a)
   repr (a :< as) = (a, as)
   abst (a, as) = (a :< as)
+
+{--------------------------------------------------------------------
+    keys package
+--------------------------------------------------------------------}
+
+instance (Functor (Vec n), Applicative (Vec n)) =>
+  Zip (Vec n) where zipWith = liftA2
+
+-- Without the seemingly redundant Functor (Vec n) constraint, GHC 8.1.20160307 says
+-- 
+--     • Could not deduce (Functor (Vec n))
+--         arising from the superclasses of an instance declaration
+--       from the context: Applicative (Vec n)
+--         bound by the instance declaration
+--         at ShapedTypes/Vec.hs:(154,10)-(155,13)
+--
+-- Perhaps <https://ghc.haskell.org/trac/ghc/ticket/11427>.
+
+#if 0
+type instance Key (Vec n) = Fin n
+
+instance Keyed Pair where
+  mapWithKey q = \ (a :# b) -> q False a :# q True b
+
+instance Lookup Pair where lookup k t = Just (index t k)
+
+instance Indexable Pair where
+  index (a :# b) k = if k then b else a
+
+instance Adjustable Pair where
+  adjust f k (a :# b) = if k then a :# f b else f a :# b
+
+instance ZipWithKey (Vec n)
+#endif
 
 {--------------------------------------------------------------------
     shaped-types instances

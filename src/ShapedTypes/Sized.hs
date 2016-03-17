@@ -17,6 +17,10 @@
 -- Statically sized functors
 ----------------------------------------------------------------------
 
+-- TODO: Reconsider whether I can use 'length' from 'Foldable' rather than the
+-- Sized type class. Can 'Foldable.length' operate efficiently on our data types
+-- (without traversing)?
+
 module ShapedTypes.Sized (Sized(..),genericSize,sizeAF) where
 
 -- TODO: explicit exports

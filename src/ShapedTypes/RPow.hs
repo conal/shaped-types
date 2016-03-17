@@ -38,6 +38,8 @@ AbsTyPragmas
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 
+-- #define UseGenerics
+
 module ShapedTypes.RPow where
 
   -- TODO: Explicit exports
@@ -56,7 +58,9 @@ module ShapedTypes.RPow where
 AbsTyImports
 
 import Data.Function (on)
+#ifndef UseGenerics
 import Control.Arrow (first)
+#endif
 import Control.Applicative (liftA2)
 import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
@@ -220,8 +224,18 @@ mapWithKey q
 
 #endif
 
-instance Applicative (Pow n h) => Zip (Pow n h) where
+instance (Functor (Pow n h), Applicative (Pow n h)) => Zip (Pow n h) where
   zipWith = liftA2
+
+-- Without the seemingly redundant Functor (Vec n) constraint, GHC 8.1.20160307 says
+-- 
+--     • Could not deduce (Functor (Vec n))
+--         arising from the superclasses of an instance declaration
+--       from the context: Applicative (Vec n)
+--         bound by the instance declaration
+--         at ShapedTypes/Vec.hs:(154,10)-(155,13)
+--
+-- Perhaps <https://ghc.haskell.org/trac/ghc/ticket/11427>.
 
 instance (Applicative (Pow n h), Keyed (Pow n h)) => ZipWithKey (Pow n h)
 
@@ -273,13 +287,13 @@ instance Generic1 (Pow h (S n)) where
   from1 = Comp1 . unB
   to1   = B . unComp1
 
-type instance Rep (Pow h Z a) = a
 instance HasRep (Pow h Z a) where
+  type Rep (Pow h Z a) = a
   repr (L a) = a
   abst = L
 
-type instance Rep (Pow h (S n) a) = h (Pow h n a)
 instance HasRep (Pow h (S n) a) where
+  type Rep (Pow h (S n) a) = h (Pow h n a)
   repr (B ts) = ts
   abst = B
 
@@ -290,28 +304,36 @@ instance HasRep (Pow h (S n) a) where
 instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where
   (=~) = approxEqFoldable
 
+#ifdef UseGenerics
+instance (Generic1 (Pow h n), Sized (Rep1 (Pow h n))) => Sized (Pow h n) where
+  size = genericSize
+
+instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
+  lscan = genericLscan
+  {-# INLINE lscan #-}
+
+#else
+
 #if 0
 instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
       => Sized (Pow h n) where
   size = const (size (pure () :: h ()) ^ size (pure () :: Vec n ()))
+-- I don't currently support exponentiation, so use either use genericSize,
+-- which repeatedly multiplies, or define methods that work similarly. TODO: Add
+-- an exponentiation prim. Which one?
 #else
-instance (Generic1 (Pow h n), Sized (Rep1 (Pow h n))) => Sized (Pow h n) where
-  size = genericSize
+instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
+      => Sized (Pow h n) where
+  size = const (product (pure (size (pure () :: h ()))  :: Vec n Int))
 #endif
--- I don't currently support exponentiation, so use genericSize, which repeatedly multiplies
--- TODO: Add an exponentiation prim. Which one?
 
-#if 0
-instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
-  lscan = genericLscan
-  {-# INLINE lscan #-}
-#else
 instance LScan (Pow h Z) where
   lscan (L a) = (L mempty, a)
   {-# INLINE lscan #-}
 instance (LScan h, Zip h, LFScan (Pow h n)) => LScan (Pow h (S n)) where
   lscan (B ts) = first B (lscanComp ts)
   {-# INLINE lscan #-}
+
 #endif
 
 {--------------------------------------------------------------------

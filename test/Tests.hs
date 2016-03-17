@@ -36,10 +36,16 @@ import Control.Applicative (liftA2)
 import ShapedTypes.Nat
 import ShapedTypes.Pair
 import ShapedTypes.Vec
--- import ShapedTypes.RTree
+import qualified ShapedTypes.RPow as R
+import qualified ShapedTypes.LPow as L
+import ShapedTypes.Scan
+import ShapedTypes.FFT
 
 type Unop  a = a -> a
 type Binop a = a -> Unop a
+
+type RTree = R.Pow Pair
+type LTree = L.Pow Pair
 
 -- foo :: Num a => a -> a
 -- foo = (+ 3)
@@ -56,66 +62,66 @@ type Binop a = a -> Unop a
 -- bar :: Num a => Unop (Tree N1 a)
 -- bar = fmap (+1)
 
-bar :: Unop (Pair Bool)
-bar = fmap not
-
--- bar :: Unop (Tree N0 Bool)
+-- bar :: Unop (Pair Bool)
 -- bar = fmap not
 
--- fmapT :: Functor (Tree n) => (a -> b) -> Tree (S n) a -> Tree (S n) b
+-- bar :: Unop (RTree N4 Bool)
+-- bar = fmap not
+
+-- fmapT :: Functor (RTree n) => (a -> b) -> RTree (S n) a -> RTree (S n) b
 -- fmapT f (B ts) = B ((fmap.fmap) f ts)
 
--- foldMapT :: (Foldable (Tree n), Monoid m) => (a -> m) -> Tree (S n) a -> m
+-- foldMapT :: (Foldable (RTree n), Monoid m) => (a -> m) -> RTree (S n) a -> m
 -- foldMapT f (B ts) = (foldMap.foldMap) f ts
 
--- foldMapT1 :: (Foldable (Tree Z), Monoid m) => (a -> m) -> Tree (S Z) a -> m
+-- foldMapT1 :: (Foldable (RTree Z), Monoid m) => (a -> m) -> RTree (S Z) a -> m
 -- foldMapT1 f (B ts) = (foldMap.foldMap) f ts
 
--- foo :: Monoid m => (a -> m) -> Tree Z a -> m
+-- foo :: Monoid m => (a -> m) -> RTree Z a -> m
 -- foo = foldMap
 
--- foo :: Num a => Unop (Tree (S (S Z)) a)
+-- foo :: Num a => Unop (RTree (S (S Z)) a)
 -- foo = fmap (+1)
 
--- foo :: Num a => Unop (Tree (S (S (S (S (S (S (S (S (S (S (S Z))))))))))) a)
+-- foo :: Num a => Unop (RTree (S (S (S (S (S (S (S (S (S (S (S Z))))))))))) a)
 
 -- foo :: Unop a -> Unop (Vec N2 a)
 -- foo = fmap
 
--- foo :: Unop (Tree N2 Bool)
+-- foo :: Unop (RTree N2 Bool)
 -- foo = fmap not
 
 -- foo = pure True :: Vec N4 Bool
 
--- foo = liftA2 (+) :: Binop (Tree N1 Int)
+-- foo = liftA2 (+) :: Binop (RTree N1 Int)
 
--- foo :: Num a => Binop (Tree N1 a)
+-- foo :: Num a => Binop (RTree N1 a)
 -- foo = liftA2 (+)
 
--- foo :: Binop (Tree N3 Int)
+-- foo :: Binop (RTree N3 Int)
 -- foo = liftA2 (+)
 
--- foo :: Tree N3 (Int -> Bool) -> Tree N3 Int -> Tree N3 Bool
+-- foo :: RTree N3 (Int -> Bool) -> RTree N3 Int -> RTree N3 Bool
 -- foo = (<*>)
 
--- foo :: Binop Bool -> Binop (Tree N4 Bool)
+-- foo :: Binop Bool -> Binop (RTree N5 Bool)
 -- foo = liftA2
 
--- foo :: Binop a -> Binop (Tree N3 a)
+-- foo :: Binop a -> Binop (RTree N3 a)
 -- foo = liftA2
 
--- foo = sequenceA :: Pair (Tree N6 Int) -> Tree N6 (Pair Int)
+foo = sequenceA :: Pair (RTree N6 Int) -> RTree N6 (Pair Int)
 
 -- -- Without SPECIALIZE: 0.66 second, 100 definitions (1118 lines), 32 specialization rules
 -- -- SPECIALIZE to 4: 0.5 second, 52 definitions (549 lines), 21 specialization rules
 -- -- SPECIALIZE to 8: 0.3 second, 1 definition (11 lines), 0 specialization rules
--- foo = sequenceA :: Tree N7 (Tree N8 Int) -> Tree N8 (Tree N7 Int)
+-- foo = sequenceA :: RTree N7 (RTree N8 Int) -> RTree N8 (RTree N7 Int)
 
 -- -- 1.0 second, 192 Core definitions (2352 lines), 79 specialization rules
--- foo = sequenceA :: Tree N15 (Tree N16 Int) -> Tree N16 (Tree N15 Int)
+-- foo = sequenceA :: RTree N15 (RTree N16 Int) -> RTree N16 (RTree N15 Int)
 
 -- -- 2.6 seconds, 43 Core definitions (884 lines), 24 specialization rules
--- foo = sequenceA :: Vec N15 (Tree N16 Int) -> Tree N16 (Vec N15 Int)
+-- foo = sequenceA :: Vec N15 (RTree N16 Int) -> RTree N16 (Vec N15 Int)
 
 -- -- 21.2 seconds, 1 definition (2149 lines), no specialization rules.
 -- foo = sequenceA :: Vec N15 (Vec N16 Int) -> Vec N16 (Vec N15 Int)
