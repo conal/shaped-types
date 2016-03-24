@@ -189,10 +189,14 @@ instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
   (=~) = approxEqFoldable
   {-# INLINE (=~) #-}
 
-instance (Foldable (Vec n), Applicative (Vec n)) => Sized (Vec n) where
-  size = sizeAF @(Vec n)
-  -- size = length (pure () :: Vec n ())
+instance Sized (Rep1 (Vec n)) => Sized (Vec n) where
+  size = genericSize @(Vec n)
   {-# INLINE size #-}
+
+-- instance (Foldable (Vec n), Applicative (Vec n)) => Sized (Vec n) where
+--   size = sizeAF @(Vec n)
+--   -- size = length (pure () :: Vec n ())
+--   {-# INLINE size #-}
 
 -- Vec is terrible for generic lscan, so scan sequentially.
 instance Traversable (Vec n) => LScan (Vec n) where

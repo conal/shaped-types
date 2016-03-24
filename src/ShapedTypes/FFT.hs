@@ -175,7 +175,9 @@ dftTraversable xs = out <$> indices
 -- the LPow and RPow modules. I'd still like to find an elegant FFT that maps f
 -- to f, and then move the instances to RPow and LPow.
 
-instance (Applicative (Vec n), Zip (Vec n), Traversable (Vec n)) =>
+instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n)
+         , Sized (Rep1 (Vec n))  -- If I use genericSize for Vec's Sized instance
+         ) =>
          FFT (Vec n) (Vec n) where
   fft = dftTraversable
   {-# INLINE fft #-}

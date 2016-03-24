@@ -29,7 +29,10 @@ module ShapedTypes.Sized (Sized(..),genericSize,sizeAF) where
 
 import GHC.Generics
 
-class Sized (f :: * -> *) where size :: Int
+class Sized (f :: * -> *) where
+  size :: Int
+  dummySized :: ()
+  dummySized = ()
 
 -- TODO: Switch from f () to f Void or Proxy
 
@@ -38,18 +41,29 @@ genericSize :: forall f. Sized (Rep1 f) => Int
 genericSize = size @(Rep1 f)
 {-# INLINABLE genericSize #-}
 
--- The argument to size is unfortunate. When GHC Haskell has explicit type
--- application (<https://ghc.haskell.org/trac/ghc/wiki/TypeApplication>),
--- replace "size (undefined :: f ())" with "size @f".
--- Meanwhile, a macro helps.
-
--- | Default for 'size' on an applicative functor.
+-- | Default for 'size' on an applicative foldable.
 -- Warning: runs in linear time (though possibly at compile time).
 sizeAF :: forall f. (Applicative f, Foldable f) => Int
 sizeAF = sum (pure 1 :: f Int)
 
+{--------------------------------------------------------------------
+    Generics
+--------------------------------------------------------------------}
+
+instance Sized U1 where
+  size = 0
+  {-# INLINABLE size #-}
+
 instance Sized Par1 where
   size = 1
+  {-# INLINABLE size #-}
+
+instance Sized (K1 i c) where
+  size = 0
+  {-# INLINABLE size #-}
+
+instance Sized f => Sized (M1 i c f) where
+  size = size @f
   {-# INLINABLE size #-}
 
 instance (Sized g, Sized f) => Sized (g :.: f) where
