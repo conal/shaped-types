@@ -174,8 +174,7 @@ dftTraversable xs = out <$> indices
 -- to f, and then move the instances to RPow and LPow.
 
 instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n)
-         , Sized (Rep1 (Vec n))  -- If I use genericSize for Vec's Sized instance
-         ) =>
+         , Sized (Vec n) ) =>
          FFT (Vec n) (Vec n) where
   fft = dftTraversable
   {-# INLINE fft #-}
