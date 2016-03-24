@@ -32,6 +32,7 @@
 
 -- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
 -- {-# OPTIONS_GHC -ddump-deriv #-}
+-- {-# OPTIONS_GHC -ddump-simpl #-}
 
 module ShapedTypes.Pair (Pair(..)) where
 
@@ -49,9 +50,10 @@ import Data.Key
 import Circat.Rep
 import Circat.ApproxEq
 
-import Circat.Category (Uncurriable(..),twiceP,(***),(&&&),second)
-import Circat.Classes (BottomCat(..),IfCat(..))
+import Circat.Category (Uncurriable(..),twiceP,(***),(&&&),second,ProductCat(..))
+import Circat.Classes (BottomCat(..),IfCat(..),IfT)
 import Circat.Circuit
+import Circat.Misc ((:*))
 #include "Circat/AbsTy.inc"
 
 import ShapedTypes.Sized
@@ -178,3 +180,11 @@ instance BottomCat (:>) a => BottomCat (:>) (Pair a) where
 instance IfCat (:>) a => IfCat (:>) (Pair a)
  where
    ifC = abstC . pairIf . second (twiceP reprC)
+
+-- Specialization of prodPair
+pairIf :: forall k a. (ProductCat k, IfCat k a) => IfT k (a :* a)
+pairIf = half exl &&& half exr
+  where
+    half :: (u `k` a) -> ((Bool :* (u :* u)) `k` a)
+    half f = ifC . second (twiceP f)
+    {-# NOINLINE half #-}
