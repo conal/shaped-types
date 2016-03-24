@@ -53,7 +53,7 @@ type LScanTy f = forall a. Monoid a => f a -> f a :* a
 
 class LScan f where
   lscan :: LScanTy f
-  -- Temporary hack to avoid newtype-like representation.
+  -- Temporary hack to avoid newtype-like representation. Still needed?
   lscanDummy :: f a
   lscanDummy = undefined
 
@@ -62,9 +62,11 @@ class LScan f where
 -- | Traversable version (sequential)
 scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
 scanlT op e = swap . mapAccumL (\ a b -> (a `op` b,a)) e
+{-# INLINABLE scanlT #-}
 
 lscanTraversable :: Traversable t => LScanTy t
 lscanTraversable = scanlT mappend mempty
+{-# INLINABLE lscanTraversable #-}
 
 type LFScan f = (Functor f, LScan f)
 
