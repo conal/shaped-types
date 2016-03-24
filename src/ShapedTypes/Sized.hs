@@ -70,6 +70,6 @@ instance (Sized g, Sized f) => Sized (g :.: f) where
   size = size @g * size @f
   {-# INLINABLE size #-}
 
-instance (Sized g, Sized f) => Sized (f :*: g) where
-  size = size @g + size @f
+instance (Sized f, Sized g) => Sized (f :*: g) where
+  size = size @f + size @g
   {-# INLINABLE size #-}
