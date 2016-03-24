@@ -149,8 +149,8 @@ instance HasRep (Vec (S n) a) where
     keys package
 --------------------------------------------------------------------}
 
-instance (Functor (Vec n), Applicative (Vec n)) =>
-  Zip (Vec n) where zipWith = liftA2
+instance (Functor (Vec n), Applicative (Vec n)) => Zip (Vec n) where
+  zipWith = liftA2
 
 -- Without the seemingly redundant Functor (Vec n) constraint, GHC 8.1.20160307 says
 -- 
@@ -187,16 +187,19 @@ instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
   (=~) = approxEqFoldable
   {-# INLINE (=~) #-}
 
-instance Sized (Rep1 (Vec n)) => Sized (Vec n) where
-  size = genericSize @(Vec n)
-  {-# INLINE size #-}
-
 -- instance (Foldable (Vec n), Applicative (Vec n)) => Sized (Vec n) where
 --   size = sizeAF @(Vec n)
 --   -- size = length (pure () :: Vec n ())
 --   {-# INLINE size #-}
 
--- Vec is terrible for generic lscan, so scan sequentially.
+instance Sized (Rep1 (Vec n)) => Sized (Vec n) where
+  size = genericSize @(Vec n)
+  {-# INLINE size #-}
+
+-- instance                  Sized (Vec   Z)   where size = 0
+-- instance Sized (Vec n) => Sized (Vec (S n)) where size = 1 + size @(Vec n)
+
+-- Generic lscan is terrible for Vec, so scan sequentially.
 instance Traversable (Vec n) => LScan (Vec n) where
   lscan = lscanTraversable
   {-# INLINE lscan #-}
