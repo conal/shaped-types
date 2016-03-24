@@ -198,10 +198,10 @@ instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
 
 instance                  Sized (Vec   Z  ) where
   size = 0
-  {-# INLINE size #-}
+  -- {-# INLINE size #-}
 instance Sized (Vec n) => Sized (Vec (S n)) where
   size = 1 + size @(Vec n)
-  {-# INLINE size #-}
+  -- {-# INLINE size #-}
 
 -- Note the *absence* of `INLINE` pragmas, particularly for `S n`. Consequently,
 -- the `1 +` gets optimized into unboxed terms, defeating my reifier and giving
