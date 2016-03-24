@@ -270,29 +270,18 @@ instance HasRep (Pow h (S n) a) where
 instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where
   (=~) = approxEqFoldable
 
-#ifdef UseGenerics
+-- Compute size @h exactly once where genericSize would compute it n times.
+instance (Sized h, Foldable (Vec n), Applicative (Vec n))
+      => Sized (Pow h n) where
+  size = product (pure (size @h)  :: Vec n Int)
 
-instance Sized (Rep1 (Pow h n)) => Sized (Pow h n) where
-  size = genericSize @(Pow h n)
+#ifdef UseGenerics
 
 instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
   lscan = genericLscan
   {-# INLINE lscan #-}
 
 #else
-
-#if 0
-instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
-      => Sized (Pow h n) where
-  size = const (size (pure () :: h ()) ^ size (pure () :: Vec n ()))
--- I don't currently support exponentiation, so use either use genericSize,
--- which repeatedly multiplies, or define methods that work similarly. TODO: Add
--- an exponentiation prim. Which one?
-#else
-instance (Sized h, Foldable (Vec n), Applicative (Vec n))
-      => Sized (Pow h n) where
-  size = product (pure (size @h)  :: Vec n Int)
-#endif
 
 instance LScan (Pow h Z) where
   lscan (L a) = (L mempty, a)
