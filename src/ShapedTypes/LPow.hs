@@ -37,11 +37,11 @@ AbsTyPragmas
 -- Right-associated functor exponentiation
 ----------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
+#define UseGenerics
 
 module ShapedTypes.LPow where
 
-  -- TODO: Explicit exports
+-- TODO: Explicit exports
 
 #define SPEC(cls,n) {-# SPECIALISE instance cls (h ^ (n)) #-}
 
@@ -272,8 +272,8 @@ instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where
 
 #ifdef UseGenerics
 
-instance (Generic1 (Pow h n), Sized (Rep1 (Pow h n))) => Sized (Pow h n) where
-  size = genericSize
+instance Sized (Rep1 (Pow h n)) => Sized (Pow h n) where
+  size = genericSize @(Pow h n)
 
 instance (Generic1 (Pow h n), LScan (Rep1 (Pow h n))) => LScan (Pow h n) where
   lscan = genericLscan
