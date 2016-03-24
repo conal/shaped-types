@@ -307,9 +307,11 @@ instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where
 -- instance (Sized h, Foldable (Vec n), Applicative (Vec n))
 --       => Sized (Pow h n) where
 --   size = product (pure (size @h) :: Vec n Int)
+--   {-# INLINE size #-}
 
 instance (Sized h, Sized (Vec n)) => Sized (Pow h n) where
   size = size @h ^ size @(Vec n)
+  {-# INLINE size #-}
 
 #ifdef UseGenerics
 
