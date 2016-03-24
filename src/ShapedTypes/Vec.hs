@@ -56,7 +56,6 @@ import Circat.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Nat
 import ShapedTypes.Scan (LScan(..),lscanTraversable)
--- import ShapedTypes.FFT
 
 AbsTyImports
 import Circat.Circuit                   -- TODO: specific imports
@@ -83,44 +82,44 @@ data Vec :: Nat -> * -> * where
 
 instance Functor (Vec Z) where
   fmap _ ZVec = ZVec
-  {-# INLINABLE fmap #-}
+  {-# INLINE fmap #-}
 
 instance Functor (Vec n) => Functor (Vec (S n)) where
   fmap f (a :< u) = f a :< fmap f u
-  {-# INLINABLE fmap #-}
+  {-# INLINE fmap #-}
   SPECS(Functor)
 
 instance Applicative (Vec Z) where
   pure _ = ZVec
   ZVec <*> ZVec = ZVec
-  {-# INLINABLE pure #-}
-  {-# INLINABLE (<*>) #-}
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
 
 instance Applicative (Vec n) => Applicative (Vec (S n)) where
   pure a = a :< pure a
   (f :< fs) <*> (a :< as) = f a :< (fs <*> as)
-  {-# INLINABLE pure  #-}
-  {-# INLINABLE (<*>) #-}
+  {-# INLINE pure  #-}
+  {-# INLINE (<*>) #-}
   SPECS(Applicative)
 
 -- TODO: Monad
 
 instance Foldable (Vec Z) where
   foldMap _ ZVec = mempty
-  {-# INLINABLE foldMap #-}
+  {-# INLINE foldMap #-}
 
 instance Foldable (Vec n) => Foldable (Vec (S n)) where
   foldMap h (a :< as) = h a <> foldMap h as
-  {-# INLINABLE foldMap #-}
+  {-# INLINE foldMap #-}
   SPECS(Foldable)
 
 instance Traversable (Vec Z) where
   traverse _ ZVec = pure ZVec
-  {-# INLINABLE traverse #-}
+  {-# INLINE traverse #-}
 
 instance Traversable (Vec n) => Traversable (Vec (S n)) where
   traverse f (a :< as) = liftA2 (:<) (f a) (traverse f as)
-  {-# INLINABLE traverse #-}
+  {-# INLINE traverse #-}
   SPECS(Traversable)
 
 {--------------------------------------------------------------------
@@ -187,12 +186,16 @@ instance ZipWithKey (Vec n)
 
 instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
   (=~) = approxEqFoldable
+  {-# INLINE (=~) #-}
 
 instance (Foldable (Vec n), Applicative (Vec n)) => Sized (Vec n) where
   size = const (length (pure () :: Vec n ()))
+  {-# INLINE size #-}
 
 -- Vec is terrible for generic lscan, so scan sequentially.
-instance Traversable (Vec n) => LScan (Vec n) where lscan = lscanTraversable
+instance Traversable (Vec n) => LScan (Vec n) where
+  lscan = lscanTraversable
+  {-# INLINE lscan #-}
 
 {--------------------------------------------------------------------
     Circuit support
