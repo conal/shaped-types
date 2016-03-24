@@ -303,10 +303,13 @@ instance HasRep (Pow h (S n) a) where
 instance (Foldable (Pow h n), ApproxEq a) => ApproxEq (Pow h n a) where
   (=~) = approxEqFoldable
 
--- Compute size @h exactly once where genericSize would compute it n times.
-instance (Sized h, Foldable (Vec n), Applicative (Vec n))
-      => Sized (Pow h n) where
-  size = product (pure (size @h) :: Vec n Int)
+-- -- Compute size @h exactly once where genericSize would compute it n times.
+-- instance (Sized h, Foldable (Vec n), Applicative (Vec n))
+--       => Sized (Pow h n) where
+--   size = product (pure (size @h) :: Vec n Int)
+
+instance (Sized h, Sized (Vec n)) => Sized (Pow h n) where
+  size = size @h ^ size @(Vec n)
 
 #ifdef UseGenerics
 
