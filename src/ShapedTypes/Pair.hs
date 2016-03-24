@@ -131,7 +131,7 @@ instance Adjustable Pair where
 instance ApproxEq a => ApproxEq (Pair a) where (=~) = approxEqFoldable
 
 instance Sized Pair where
-  size = const 2
+  size = 2
   {-# INLINE size #-}
 
 instance LScan Pair where

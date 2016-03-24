@@ -82,14 +82,14 @@ class FFT f f' | f -> f' where
   fftDummy :: f a
   fftDummy = undefined
 
--- #define tySize(f) (size (undefined :: (f) ()))
-#define tySize(f) (size (pure () :: (f) ()))
--- #define tySize(f) (size @(f))
+-- -- #define tySize(f) (size (undefined :: (f) ()))
+-- #define tySize(f) (size (pure () :: (f) ()))
+-- -- #define tySize(f) (size @(f))
 
 type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
 
 twiddle :: forall g f a. (AFS g, AFS f, RealFloat a) => Unop (g (f (Complex a)))
-twiddle = (zipWith.zipWith) (*) (twiddles (tySize(g :.: f)))
+twiddle = (zipWith.zipWith) (*) (twiddles (size @(g :.: f)))
 {-# INLINE twiddle #-}
 
 -- Twiddle factors.
@@ -160,7 +160,7 @@ dftTraversable xs = out <$> indices
  where
    out k   = sum (zipWith (\ n x -> x * ok^n) indices xs) where ok = om ^ k
    indices = iota :: f Int
-   om      = omega (tySize(f))
+   om      = omega (size @f)
 {-# INLINABLE dftTraversable #-}
 
 -- TODO: Replace Applicative with Zippable
@@ -228,7 +228,7 @@ dft xs = [ sum [ x * ok^n | x <- xs | n <- [0 :: Int ..] ]
    om = omega (length xs)
 
 dftQ :: forall f a. (AFS f, RealFloat a) => Unop (f (Complex a))
-dftQ as = (<.> as) <$> twiddles (tySize(L.Tree N1 :. Pair))
+dftQ as = (<.> as) <$> twiddles (size @f)
 {-# INLINE dftQ #-}
 
 -- Binary dot product
@@ -258,10 +258,10 @@ p1 :: Pair C
 p1 = 1 :# 0
 
 tw1 :: L.Tree N1 (Pair C)
-tw1 = twiddles (tySize(L.Tree N1 :. Pair))
+tw1 = twiddles (size @(L.Tree N1 :. Pair))
 
 tw2 :: L.Tree N2 (Pair C)
-tw2 = twiddles (tySize(L.Tree N2 :. Pair))
+tw2 = twiddles (size @(L.Tree N2 :. Pair))
 
 -- Adapted from Dave's testing
 

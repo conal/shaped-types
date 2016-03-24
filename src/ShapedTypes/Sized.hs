@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP                 #-}
+{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeOperators       #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -27,17 +29,13 @@ module ShapedTypes.Sized (Sized(..),genericSize,sizeAF) where
 
 import GHC.Generics
 
-class Sized f where
-  size :: f () -> Int -- ^ Argument is ignored at runtime
-  -- Temporary hack to avoid newtype-like representation.
-  sizeDummy :: f a
-  sizeDummy = undefined
+class Sized (f :: * -> *) where size :: Int
 
 -- TODO: Switch from f () to f Void or Proxy
 
 -- | Generic 'size'
-genericSize :: (Generic1 f, Sized (Rep1 f)) => f () -> Int
-genericSize = size . from1
+genericSize :: forall f. Sized (Rep1 f) => Int
+genericSize = size @(Rep1 f)
 {-# INLINABLE genericSize #-}
 
 -- The argument to size is unfortunate. When GHC Haskell has explicit type
@@ -45,20 +43,19 @@ genericSize = size . from1
 -- replace "size (undefined :: f ())" with "size @f".
 -- Meanwhile, a macro helps.
 
-#define tySize(f) (size (undefined :: (f) ()))
-
--- | Useful default for 'size'.
-sizeAF :: forall f. (Applicative f, Foldable f) => f () -> Int
-sizeAF = const (sum (pure 1 :: f Int))
+-- | Default for 'size' on an applicative functor.
+-- Warning: runs in linear time (though possibly at compile time).
+sizeAF :: forall f. (Applicative f, Foldable f) => Int
+sizeAF = sum (pure 1 :: f Int)
 
 instance Sized Par1 where
-  size = const 1
+  size = 1
   {-# INLINABLE size #-}
 
 instance (Sized g, Sized f) => Sized (g :.: f) where
-  size = const (tySize(g) * tySize(f))
+  size = size @g * size @f
   {-# INLINABLE size #-}
 
 instance (Sized g, Sized f) => Sized (f :*: g) where
-  size = const (tySize(g) + tySize(f))
+  size = size @g + size @f
   {-# INLINABLE size #-}

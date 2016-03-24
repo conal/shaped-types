@@ -12,6 +12,7 @@
 {-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 
@@ -189,7 +190,8 @@ instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
   {-# INLINE (=~) #-}
 
 instance (Foldable (Vec n), Applicative (Vec n)) => Sized (Vec n) where
-  size = const (length (pure () :: Vec n ()))
+  size = sizeAF @(Vec n)
+  -- size = length (pure () :: Vec n ())
   {-# INLINE size #-}
 
 -- Vec is terrible for generic lscan, so scan sequentially.

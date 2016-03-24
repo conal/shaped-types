@@ -12,6 +12,7 @@
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 
@@ -322,9 +323,9 @@ instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
 -- which repeatedly multiplies, or define methods that work similarly. TODO: Add
 -- an exponentiation prim. Which one?
 #else
-instance (Applicative h, Sized h, Foldable (Vec n), Applicative (Vec n))
+instance (Sized h, Foldable (Vec n), Applicative (Vec n))
       => Sized (Pow h n) where
-  size = const (product (pure (size (pure () :: h ()))  :: Vec n Int))
+  size = product (pure (size @h)  :: Vec n Int)
 #endif
 
 instance LScan (Pow h Z) where
