@@ -39,8 +39,6 @@
 -- Generic FFT
 ----------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
-
 module ShapedTypes.FFT
   ( FFT(..), DFTTy, genericFft, dftTraversable, GFFT
   -- Temporary while debugging

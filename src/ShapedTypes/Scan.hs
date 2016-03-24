@@ -26,8 +26,6 @@
 -- Parallel scan
 ----------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
-
 module ShapedTypes.Scan
   ( LScanTy, LScan(..), LFScan
   , lscanTraversable

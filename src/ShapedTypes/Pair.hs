@@ -30,10 +30,6 @@
 -- Some data types for specializing
 ----------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
--- {-# OPTIONS_GHC -ddump-deriv #-}
--- {-# OPTIONS_GHC -ddump-simpl #-}
-
 module ShapedTypes.Pair (Pair(..)) where
 
 import Prelude hiding (id,(.))

@@ -37,8 +37,6 @@ AbsTyPragmas
 -- Length-typed lists/vectors
 ----------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -fplugin-opt=LambdaCCC.Reify:verbose #-}
-
 module ShapedTypes.Vec (Vec(..)) where
 
 import Prelude hiding (id,(.))
