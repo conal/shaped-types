@@ -198,15 +198,15 @@ instance (Foldable (Vec n), ApproxEq a) => ApproxEq (Vec n a) where
 
 instance                  Sized (Vec   Z  ) where
   size = 0
-  -- {-# INLINE size #-}
+  {-# INLINE size #-}
 instance Sized (Vec n) => Sized (Vec (S n)) where
   size = 1 + size @(Vec n)
-  -- {-# INLINE size #-}
+  {-# INLINE size #-}
 
--- Note the *absence* of `INLINE` pragmas. Consequently, the `1 +` gets
--- optimized into unboxed terms, defeating my reifier and giving GHC more
--- opportunity for compile-time simplification. Seems a fragile hack. Find
--- robust ways to let GHC do more simplification.
+-- Note the *absence* of `INLINE` pragmas, particularly for `S n`. Consequently,
+-- the `1 +` gets optimized into unboxed terms, defeating my reifier and giving
+-- GHC more opportunity for compile-time simplification. Seems a fragile hack.
+-- Find robust ways to let GHC do more simplification.
 
 -- Generic lscan is terrible for Vec, so scan sequentially.
 instance Traversable (Vec n) => LScan (Vec n) where
