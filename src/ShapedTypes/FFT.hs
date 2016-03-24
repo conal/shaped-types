@@ -12,6 +12,7 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 {-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE TypeApplications       #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 
 {-# LANGUAGE UndecidableInstances #-} -- See below
@@ -64,9 +65,8 @@ import ShapedTypes.Sized
 import ShapedTypes.Scan (LScan,lproducts,iota) -- , lsums
 #ifndef GenericPowFFT
 import ShapedTypes.Nat
-#else
-import ShapedTypes.Vec
 #endif
+import ShapedTypes.Vec
 import qualified ShapedTypes.LPow as L
 import qualified ShapedTypes.RPow as R
 
@@ -84,6 +84,7 @@ class FFT f f' | f -> f' where
 
 -- #define tySize(f) (size (undefined :: (f) ()))
 #define tySize(f) (size (pure () :: (f) ()))
+-- #define tySize(f) (size @(f))
 
 type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
 
@@ -174,18 +175,18 @@ dftTraversable xs = out <$> indices
 -- the LPow and RPow modules. I'd still like to find an elegant FFT that maps f
 -- to f, and then move the instances to RPow and LPow.
 
-#ifdef GenericPowFFT
-
 instance (Applicative (Vec n), Zip (Vec n), Traversable (Vec n)) =>
          FFT (Vec n) (Vec n) where
   fft = dftTraversable
   {-# INLINE fft #-}
 
--- GenericFFT(Vec     n, Vec     n)
+#ifdef GenericPowFFT
+
 GenericFFT(R.Pow h n, L.Pow k n)
 GenericFFT(L.Pow h n, R.Pow k n)
 
 #else
+
 type ATS f = (Applicative f, Zip f, Traversable f, Sized f)
 
 -- TODO: Vec instance
