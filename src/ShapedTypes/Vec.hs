@@ -278,6 +278,9 @@ instance (Applicative (Vec n), IfCat (:>) a) => IfCat (:>) (Vec n a)
       ifc = ifC
       {-# NOINLINE ifc #-}
 
+-- Without these NOINLINE pragmas, GHC's typechecker does exponential work for
+-- n-ary trees.
+
 #if 0
 reprC :: Vec (S m) a :> Rep (Vec (S m) a)
 twiceP reprC :: Vec (S m) a :* Vec (S m) a :> Rep (Vec (S m) a) :* Rep (Vec (S m) a)
