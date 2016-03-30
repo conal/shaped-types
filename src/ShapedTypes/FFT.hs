@@ -13,6 +13,7 @@
 {-# LANGUAGE TemplateHaskell        #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE TypeApplications       #-}
+{-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 
 {-# LANGUAGE UndecidableInstances #-} -- See below
@@ -65,6 +66,8 @@ import ShapedTypes.Scan (LScan,lproducts,iota) -- , lsums
 import ShapedTypes.Nat
 #endif
 import ShapedTypes.Vec
+import ShapedTypes.LPow (LPow)
+import ShapedTypes.RPow (RPow)
 import qualified ShapedTypes.LPow as L
 import qualified ShapedTypes.RPow as R
 
@@ -72,17 +75,14 @@ import qualified ShapedTypes.RPow as R
     FFT
 --------------------------------------------------------------------}
 
-type DFTTy f f' = forall a. RealFloat a => f (Complex a) -> f' (Complex a)
+type DFTTy f = forall a. RealFloat a => f (Complex a) -> FFO f (Complex a)
 
-class FFT f f' | f -> f' where
-  fft :: DFTTy f f'
+class FFT f where
+  type FFO f :: * -> *
+  fft :: DFTTy f
   -- Temporary hack to avoid newtype-like representation.
   fftDummy :: f a
   fftDummy = undefined
-
--- -- #define tySize(f) (size (undefined :: (f) ()))
--- #define tySize(f) (size (pure () :: (f) ()))
--- -- #define tySize(f) (size @(f))
 
 type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
 
@@ -119,13 +119,15 @@ powers = fst . lproducts . pure
     Generic support
 --------------------------------------------------------------------}
 
-instance FFT Par1 Par1 where
+instance FFT Par1 where
+  type FFO Par1 = Par1
   fft = id
 
 instance ( Applicative f , Zip f,  Traversable f , Traversable g
-         , Applicative f', Zip g', Applicative g', Traversable g'
-         , FFT f f', FFT g g', LScan f, LScan g', Sized f, Sized g' )
-      => FFT (g :.: f) (f' :.: g') where
+         , Applicative (FFO f), Zip (FFO g), Applicative (FFO g), Traversable (FFO g)
+         , FFT f, FFT g, LScan f, LScan (FFO g), Sized f, Sized (FFO g) )
+      => FFT (g :.: f) where
+  type FFO (g :.: f) = FFO f :.: FFO g
   fft = inComp (traverse fft . twiddle . traverse fft . transpose)
   {-# INLINE fft #-}
 
@@ -145,21 +147,32 @@ instance ( Applicative f , Zip f,  Traversable f , Traversable g
 #endif
 
 -- | Generic FFT
-genericFft :: (Generic1 f, Generic1 f', FFT (Rep1 f) (Rep1 f')) => DFTTy f f'
+genericFft :: ( Generic1 f, Generic1 (FFO f)
+              , FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f) ) => DFTTy f
 genericFft = inGeneric1 fft
 
-type GFFT f f' = (Generic1 (f), Generic1 (f'), FFT (Rep1 (f)) (Rep1 (f')))
+-- | Generic FFT
+
+-- genericFft :: DFTTy f
+
+-- genericFft :: ( FFO (Rep1 f) ~ Rep1 g, FFT (Rep1 f)
+--               , Generic1 g, Generic1 f, RealFloat a )
+--            => f (Complex a) -> g (Complex a)
+-- genericFft = inGeneric1 fft
+
+type GFFT f = (Generic1 f, Generic1 (FFO f), FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f))
 
 #define GenericFFT(f,g) instance GFFT (f)(g) => FFT (f)(g) where fft = genericFft
 
 -- Generalization of 'dft' to traversables.
-dftTraversable :: forall f a. (AFS f, Traversable f, RealFloat a) => Unop (f (Complex a))
+dftTraversable :: forall f a. (AFS f, Traversable f, RealFloat a)
+               => Unop (f (Complex a))
 dftTraversable xs = out <$> indices
  where
    out k   = sum (zipWith (\ n x -> x * ok^n) indices xs) where ok = om ^ k
    indices = iota :: f Int
    om      = omega (size @f)
-{-# INLINABLE dftTraversable #-}
+{-# INLINE dftTraversable #-}
 
 -- TODO: Replace Applicative with Zippable
 
@@ -173,40 +186,44 @@ dftTraversable xs = out <$> indices
 -- the LPow and RPow modules. I'd still like to find an elegant FFT that maps f
 -- to f, and then move the instances to RPow and LPow.
 
-instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n)
-         , Sized (Vec n) ) =>
-         FFT (Vec n) (Vec n) where
+instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n), Sized (Vec n) )
+      => FFT (Vec n) where
+  type FFO (Vec n) = Vec n
   fft = dftTraversable
   {-# INLINE fft #-}
 
 #ifdef GenericPowFFT
 
-GenericFFT(R.Pow h n, L.Pow k n)
-GenericFFT(L.Pow h n, R.Pow k n)
+GenericFFT(RPow h n, LPow k n)
+GenericFFT(LPow h n, RPow k n)
 
 #else
 
 type ATS f = (Applicative f, Zip f, Traversable f, Sized f)
 
--- TODO: Vec instance
-
-instance FFT (R.Pow h Z) (L.Pow h Z) where
+instance FFT (RPow h Z) where
+  type FFO (RPow h Z) = (LPow h Z)
   fft = L.L . R.unL
   {-# INLINE fft #-}
 
-instance ( ATS h, ATS h', ATS (L.Pow h' n), ATS (R.Pow h n), LScan (R.Pow h n), LScan h'
-         , FFT h h', FFT (R.Pow h n) (L.Pow h' n) )
-      => FFT (R.Pow h ('S n)) (L.Pow h' ('S n)) where
+instance ( ATS h, ATS (FFO h), ATS (LPow (FFO h) n), ATS (RPow h n)
+         , LScan (RPow h n), LScan (FFO h)
+         , FFT h, FFT (RPow h n), FFO (RPow h n) ~ LPow (FFO h) n )
+      => FFT (RPow h ('S n)) where
+  type FFO (RPow h ('S n)) = LPow (FFO h) ('S n)
   fft = L.B . unComp1 . fft . Comp1 . R.unB
   {-# INLINE fft #-}
 
-instance FFT (L.Pow h Z) (R.Pow h Z) where
+instance FFT (LPow h Z) where
+  type FFO (LPow h Z) = RPow h Z
   fft = R.L . L.unL
   {-# INLINE fft #-}
 
-instance ( ATS h, ATS h', ATS (R.Pow h' n), ATS (L.Pow h n), LScan (R.Pow h' n), LScan h
-         , FFT h h', FFT (L.Pow h n) (R.Pow h' n) )
-      => FFT (L.Pow h ('S n)) (R.Pow h' ('S n)) where
+instance ( ATS h, ATS (FFO h), ATS (RPow (FFO h) n), ATS (LPow h n)
+         , LScan (RPow (FFO h) n), LScan h
+         , FFT h, FFT (LPow h n), FFO (LPow h n) ~ RPow (FFO h) n )
+      => FFT (LPow h ('S n)) where
+  type FFO (LPow h ('S n)) = RPow (FFO h) ('S n)
   fft = R.B . unComp1 . fft . Comp1 . L.unB
   {-# INLINE fft #-}
 
