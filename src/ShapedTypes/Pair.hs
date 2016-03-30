@@ -38,7 +38,7 @@ import Control.Category (id,(.))
 import Control.Applicative (liftA2)
 import Data.Typeable (Typeable)
 import Data.Data (Data)
-import GHC.Generics (Generic,Generic1) 
+import GHC.Generics (Generic,Generic1)
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
@@ -58,9 +58,8 @@ import ShapedTypes.FFT
 
 infixl 1 :#
 -- | Uniform pairs
-data Pair a = a :# a deriving (Functor,Traversable,Eq,Show,Typeable,Data,Generic,Generic1)
-
--- TODO: retry with deriving
+data Pair a = a :# a
+  deriving (Functor,Traversable,Eq,Show,Typeable,Data,Generic,Generic1)
 
 instance HasRep (Pair a) where
   type Rep (Pair a) = (a,a)
@@ -135,7 +134,8 @@ instance LScan Pair where
   {-# INLINE lscan #-}
 
 -- Radix 2 butterfly
-instance FFT Pair Pair where
+instance FFT Pair where
+  type FFO Pair = Pair
   fft (a :# b) = (a + b) :# (a - b)
   {-# INLINE fft #-}
 
@@ -163,8 +163,7 @@ instance GenBuses a => GenBuses (Pair a) where
      {-# NOINLINE t #-}
 
 -- Without these NOINLINE pragmas, GHC's typechecker does exponential work for
--- binary trees. I'll want to do something similar for Vec as well so that n-ary
--- trees don't blow up.
+-- binary trees.
 
 instance BottomCat (:>) a => BottomCat (:>) (Pair a) where
   bottomC = abstC . (bc &&& bc)
