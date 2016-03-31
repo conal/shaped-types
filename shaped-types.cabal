@@ -27,13 +27,14 @@ Library
                      , TypeCompose
                      , circat
 
---                      , lambda-ccc
+                     , reification-rules
 
 -- TODO: can I drop ghc-prim and still compile with the reification plugin?
 
   Exposed-Modules:     
                        ShapedTypes.Misc
                        ShapedTypes.Sized
+
                        ShapedTypes.Nat
                        ShapedTypes.Pair
                        ShapedTypes.Vec
@@ -42,21 +43,29 @@ Library
                        ShapedTypes.Linear
                        ShapedTypes.Scan
                        ShapedTypes.FFT
+
 --                        ShapedTypes.ApproxEq
 --                        ShapedTypes.Complex
 
 --                        ShapedTypes.Interactive
 --                        ShapedTypes.Plugin
+
   ghc-options:         -Wall
 
---                        -fplugin=LambdaCCC.Plugin -dcore-lint
+--                        -fplugin=ReificationRules.Plugin
+--                        -dcore-lint -fexpose-all-unfoldings
 
---                        -fplugin-opt=LambdaCCC.Reify:verbose
---                        -ddump-to-file -dverbose-core2core
-                       -dppr-case-as-let -dsuppress-idinfo
-                       -dsuppress-uniques -dsuppress-module-prefixes
-                       -- -dsuppress-type-applications
-                       -- -dsuppress-all
+                       -fplugin-opt=ReificationRules.Plugin:trace
+
+
+--                        -ddump-rule-rewrites
+
+--                        -ddump-inlinings
+
+--                        -ddump-rules
+
+                       -dsuppress-idinfo
+                       -dsuppress-module-prefixes
 
 
 -- TODO: Add a flag for whether to compile with reification.
