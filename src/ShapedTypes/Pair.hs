@@ -44,7 +44,6 @@ import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 import Data.Key
 
 import Circat.Rep
-import Circat.ApproxEq
 
 import Circat.Category (Uncurriable(..),twiceP,(***),(&&&),second,ProductCat(..))
 import Circat.Classes (BottomCat(..),IfCat(..),IfT)
@@ -52,9 +51,9 @@ import Circat.Circuit
 import Circat.Misc ((:*))
 #include "Circat/AbsTy.inc"
 
+import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Scan
-import ShapedTypes.FFT
 
 infixl 1 :#
 -- | Uniform pairs
@@ -132,12 +131,6 @@ instance Sized Pair where
 instance LScan Pair where
   lscan (a :# b) = (mempty :# a, a <> b)
   {-# INLINE lscan #-}
-
--- Radix 2 butterfly
-instance FFT Pair where
-  type FFO Pair = Pair
-  fft (a :# b) = (a + b) :# (a - b)
-  {-# INLINE fft #-}
 
 {--------------------------------------------------------------------
     Circuit support
