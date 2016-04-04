@@ -21,6 +21,7 @@
 AbsTyPragmas
 
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -37,11 +38,19 @@ AbsTyPragmas
 -- Right-associated functor exponentiation
 ----------------------------------------------------------------------
 
+
+{-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
+
+-- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
+-- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
+
 -- #define UseGenerics
 
-module ShapedTypes.RPow where
-
-  -- TODO: Explicit exports
+module ShapedTypes.RPow
+  (
+    RPow(..),Pow,type (^)
+  , unL,unB, inL,inB, inL2,inB2
+  ) where
 
 #define SPEC(cls,n) {-# SPECIALISE instance cls (h ^ (n)) #-}
 
@@ -54,8 +63,6 @@ module ShapedTypes.RPow where
 -- thus probably want to comment out all or some of the `SPEC`s in `SPECS` while
 -- developing.
 
-AbsTyImports
-
 import Data.Function (on)
 #ifndef UseGenerics
 import Control.Arrow (first)
@@ -66,14 +73,15 @@ import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
 
-import Circat.Rep
 import Circat.Misc ((<~),showsUnary)
-import Circat.ApproxEq
 
+import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
 import ShapedTypes.Scan
+
+import ShapedTypes.Types.RPow
 
 {--------------------------------------------------------------------
     Type and basic manipulation
@@ -81,12 +89,7 @@ import ShapedTypes.Scan
 
 infix 8 ^  -- infixr is ill-kinded, while infixl is contrary to convention
 
--- Top-down, depth-typed, perfect, binary, leaf trees
-data RPow :: (* -> *) -> Nat -> * -> * where
-  L :: a -> RPow h Z a
-  B :: h (RPow h n a) -> RPow h (S n) a
-
--- I use "RPow" instead of "Pow" to make compiler output easier to follow.
+type Pow = RPow
 
 type (^) = RPow
 
@@ -116,44 +119,44 @@ inB2 = inB <~ unB
 
 instance Functor (RPow h Z) where
   fmap f (L a ) = L (f a)
-  {-# INLINABLE fmap #-}
+  {-# INLINE fmap #-}
 
 instance (Functor h, Functor (RPow h n)) => Functor (RPow h (S n)) where
   fmap f (B ts) = B ((fmap.fmap) f ts)
-  {-# INLINABLE fmap #-}
+  {-# INLINE fmap #-}
   SPECS(Functor)
 
 instance Applicative (RPow h Z) where
   pure a = L a
   L f <*> L a = L (f a)
-  {-# INLINABLE pure #-}
-  {-# INLINABLE (<*>) #-}
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
 
 instance (Applicative h, Applicative (RPow h n)) => Applicative (RPow h (S n)) where
   pure a = B (pure (pure a))
   B fs <*> B xs = B (liftA2 (<*>) fs xs)
-  {-# INLINABLE pure #-}
-  {-# INLINABLE (<*>) #-}
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
   SPECS(Applicative)
 
 -- TODO: Monad
 
 instance Foldable (RPow h Z) where
   foldMap f (L a) = f a
-  {-# INLINABLE foldMap #-}
+  {-# INLINE foldMap #-}
 
 instance (Foldable h, Foldable (RPow h n)) => Foldable (RPow h (S n)) where
   foldMap f (B ts) = (foldMap.foldMap) f ts
-  {-# INLINABLE foldMap #-}
+  {-# INLINE foldMap #-}
   SPECS(Foldable)
 
 instance Traversable (RPow h Z) where
   traverse f (L a ) = L <$> f a
-  {-# INLINABLE traverse #-}
+  {-# INLINE traverse #-}
 
 instance (Traversable h, Traversable (RPow h n)) => Traversable (RPow h (S n)) where
   traverse f (B ts) = B <$> (traverse.traverse) f ts
-  {-# INLINABLE traverse #-}
+  {-# INLINE traverse #-}
   SPECS(Traversable)
 
 instance Eq a => Eq (RPow h Z a) where
@@ -288,16 +291,6 @@ instance Generic1 (RPow h (S n)) where
   from1 = Comp1 . unB
   to1   = B . unComp1
 
-instance HasRep (RPow h Z a) where
-  type Rep (RPow h Z a) = a
-  repr (L a) = a
-  abst = L
-
-instance HasRep (RPow h (S n) a) where
-  type Rep (RPow h (S n) a) = h (RPow h n a)
-  repr (B ts) = ts
-  abst = B
-
 {--------------------------------------------------------------------
     shaped-types instances
 --------------------------------------------------------------------}
@@ -331,10 +324,3 @@ instance (LScan h, Zip h, LFScan (RPow h n)) => LScan (RPow h (S n)) where
   {-# INLINE lscan #-}
 
 #endif
-
-{--------------------------------------------------------------------
-    Circuit support
---------------------------------------------------------------------}
-
-AbsTy(RPow h   Z   a)
-AbsTy(RPow h (S n) a)

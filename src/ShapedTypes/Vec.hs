@@ -21,6 +21,7 @@
 AbsTyPragmas
 
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -50,14 +51,19 @@ import Data.Key
 import Circat.Classes (unitIf)
 import Circat.Rep
 import Circat.Misc (Unit,(:*))
-import Circat.ApproxEq
 
+AbsTyImports
+import Circat.Circuit                   -- TODO: specific imports
+
+import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Nat
 import ShapedTypes.Scan (LScan(..),lscanTraversable)
 
-AbsTyImports
-import Circat.Circuit                   -- TODO: specific imports
+-- Experiment
+import ShapedTypes.Pair
+
+import ShapedTypes.Types.Vec
 
 #define SPEC(cls,n) {-# SPECIALISE instance cls (Vec n) #-}
 
@@ -69,15 +75,6 @@ import Circat.Circuit                   -- TODO: specific imports
 -- this library code *and* the less time it takes to compile client code. We
 -- thus probably want to comment out all or some of the `SPEC`s in `SPECS` while
 -- developing.
-
-infixr 5 :<
-
--- | Vectors with type-determined length, having empty vector ('ZVec') and
--- vector cons ('(:<)').
-data Vec :: Nat -> * -> * where
-  ZVec :: Vec Z a 
-  (:<) :: a -> Vec n a -> Vec (S n) a
--- deriving Typeable
 
 instance Functor (Vec Z) where
   fmap _ ZVec = ZVec

@@ -21,6 +21,7 @@
 AbsTyPragmas
 
 {-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -37,9 +38,16 @@ AbsTyPragmas
 -- Right-associated functor exponentiation
 ----------------------------------------------------------------------
 
+-- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
+-- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
+
 -- #define UseGenerics
 
-module ShapedTypes.LPow where
+module ShapedTypes.LPow
+  (
+    LPow(..),Pow,type (^)
+  , unL,unB, inL,inB, inL2,inB2
+  ) where
 
 -- TODO: Explicit exports
 
@@ -66,12 +74,14 @@ import Data.Key
 
 import Circat.Rep
 import Circat.Misc ((<~),showsUnary)
-import Circat.ApproxEq
 
+import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
 import ShapedTypes.Scan
+
+import ShapedTypes.Types.LPow
 
 {--------------------------------------------------------------------
     Type and basic manipulation
@@ -79,12 +89,7 @@ import ShapedTypes.Scan
 
 infix 8 ^  -- infixr is ill-kinded, while infixl is contrary to convention
 
--- Top-down, depth-typed, perfect, binary, leaf trees
-data LPow :: (* -> *) -> Nat -> * -> * where
-  L :: a -> LPow h Z a
-  B :: LPow h n (h a) -> LPow h (S n) a
-
--- I use "LPow" instead of "Pow" to make compiler output easier to follow.
+type Pow = LPow
 
 type (^) = LPow
 
@@ -114,44 +119,44 @@ inB2 = inB <~ unB
 
 instance Functor (LPow h Z) where
   fmap f (L a ) = L (f a)
-  {-# INLINABLE fmap #-}
+  {-# INLINE fmap #-}
 
 instance (Functor h, Functor (LPow h n)) => Functor (LPow h (S n)) where
   fmap f (B ts) = B ((fmap.fmap) f ts)
-  {-# INLINABLE fmap #-}
+  {-# INLINE fmap #-}
   SPECS(Functor)
 
 instance Applicative (LPow h Z) where
   pure a = L a
   L f <*> L a = L (f a)
-  {-# INLINABLE pure #-}
-  {-# INLINABLE (<*>) #-}
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
 
 instance (Applicative h, Applicative (LPow h n)) => Applicative (LPow h (S n)) where
   pure a = B (pure (pure a))
   B fs <*> B xs = B (liftA2 (<*>) fs xs)
-  {-# INLINABLE pure #-}
-  {-# INLINABLE (<*>) #-}
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
   SPECS(Applicative)
 
 -- TODO: Monad
 
 instance Foldable (LPow h Z) where
   foldMap f (L a) = f a
-  {-# INLINABLE foldMap #-}
+  {-# INLINE foldMap #-}
 
 instance (Foldable h, Foldable (LPow h n)) => Foldable (LPow h (S n)) where
   foldMap f (B ts) = (foldMap.foldMap) f ts
-  {-# INLINABLE foldMap #-}
+  {-# INLINE foldMap #-}
   SPECS(Foldable)
 
 instance Traversable (LPow h Z) where
   traverse f (L a ) = L <$> f a
-  {-# INLINABLE traverse #-}
+  {-# INLINE traverse #-}
 
 instance (Traversable h, Traversable (LPow h n)) => Traversable (LPow h (S n)) where
   traverse f (B ts) = B <$> (traverse.traverse) f ts
-  {-# INLINABLE traverse #-}
+  {-# INLINE traverse #-}
   SPECS(Traversable)
 
 instance Eq a => Eq (LPow h Z a) where
@@ -255,16 +260,6 @@ instance Generic1 (LPow h (S n)) where
   from1 = Comp1 . unB
   to1   = B . unComp1
 
-instance HasRep (LPow h Z a) where
-  type Rep (LPow h Z a) = a
-  repr (L a) = a
-  abst = L
-
-instance HasRep (LPow h (S n) a) where
-  type Rep (LPow h (S n) a) = LPow h n (h a)
-  repr (B t) = t
-  abst t = B t
-
 {--------------------------------------------------------------------
     shaped-types instances
 --------------------------------------------------------------------}
@@ -298,10 +293,3 @@ instance (LFScan h, LScan (LPow h n), Applicative (LPow h n))
   {-# INLINE lscan #-}
 
 #endif
-
-{--------------------------------------------------------------------
-    Circuit support
---------------------------------------------------------------------}
-
-AbsTy(LPow h   Z   a)
-AbsTy(LPow h (S n) a)

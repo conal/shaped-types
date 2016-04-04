@@ -34,28 +34,27 @@ Library
   Exposed-Modules:     
                        ShapedTypes.Misc
                        ShapedTypes.Sized
-
-                       ShapedTypes.Nat
-                       ShapedTypes.Pair
-                       ShapedTypes.Vec
-                       ShapedTypes.RPow
-                       ShapedTypes.LPow
+                       ShapedTypes.ApproxEq
                        ShapedTypes.Linear
                        ShapedTypes.Scan
                        ShapedTypes.FFT
+                       ShapedTypes.Pair
+                       ShapedTypes.Nat
+                       ShapedTypes.Vec
+                       ShapedTypes.RPow
+                       ShapedTypes.LPow
+  Other-Modules:
+                       ShapedTypes.Types.Pair
+                       ShapedTypes.Types.Vec
+                       ShapedTypes.Types.RPow
+                       ShapedTypes.Types.LPow
 
---                        ShapedTypes.ApproxEq
---                        ShapedTypes.Complex
-
---                        ShapedTypes.Interactive
---                        ShapedTypes.Plugin
 
   ghc-options:         -Wall
 
---                        -fplugin=ReificationRules.Plugin
---                        -dcore-lint -fexpose-all-unfoldings
+--                        -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings
 
-                       -fplugin-opt=ReificationRules.Plugin:trace
+--                        -fplugin-opt=ReificationRules.Plugin:trace
 
 
 --                        -ddump-rule-rewrites
@@ -64,8 +63,7 @@ Library
 
 --                        -ddump-rules
 
-                       -dsuppress-idinfo
-                       -dsuppress-module-prefixes
+                       -dsuppress-idinfo -dsuppress-module-prefixes
 
 
 -- TODO: Add a flag for whether to compile with reification.

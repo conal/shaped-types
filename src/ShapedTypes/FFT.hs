@@ -65,6 +65,7 @@ import ShapedTypes.Scan (LScan,lproducts,iota) -- , lsums
 #ifndef GenericPowFFT
 import ShapedTypes.Nat
 #endif
+import ShapedTypes.Pair
 import ShapedTypes.Vec
 import ShapedTypes.LPow (LPow)
 import ShapedTypes.RPow (RPow)
@@ -185,6 +186,12 @@ dftTraversable xs = out <$> indices
 -- I put the specific instances here in order to avoid an import loop between
 -- the LPow and RPow modules. I'd still like to find an elegant FFT that maps f
 -- to f, and then move the instances to RPow and LPow.
+
+-- Radix 2 butterfly
+instance FFT Pair where
+  type FFO Pair = Pair
+  fft (a :# b) = (a + b) :# (a - b)
+  {-# INLINE fft #-}
 
 instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n), Sized (Vec n) )
       => FFT (Vec n) where

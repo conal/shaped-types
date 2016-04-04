@@ -15,8 +15,14 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
+
+-- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
+-- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
+-- {-# OPTIONS_GHC -dverbose-core2core #-}
 
 ----------------------------------------------------------------------
 -- |
@@ -36,14 +42,14 @@ import Prelude hiding (id,(.))
 import Data.Monoid ({-Monoid(..),-}(<>))
 import Control.Category (id,(.))
 import Control.Applicative (liftA2)
-import Data.Typeable (Typeable)
-import Data.Data (Data)
-import GHC.Generics (Generic,Generic1)
+-- import Data.Typeable (Typeable)
+-- import Data.Data (Data)
+-- import GHC.Generics (Generic,Generic1)
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
 
-import Circat.Rep
+-- import Circat.Rep
 
 import Circat.Category (Uncurriable(..),twiceP,(***),(&&&),second,ProductCat(..))
 import Circat.Classes (BottomCat(..),IfCat(..),IfT)
@@ -55,19 +61,25 @@ import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Scan
 
-infixl 1 :#
--- | Uniform pairs
-data Pair a = a :# a
-  deriving (Functor,Traversable,Eq,Show,Typeable,Data,Generic,Generic1)
-
-instance HasRep (Pair a) where
-  type Rep (Pair a) = (a,a)
-  repr (a :# a') = (a,a')
-  abst (a,a') = (a :# a')
+-- Type definition
+import ShapedTypes.Types.Pair
 
 {--------------------------------------------------------------------
     Standard type class instances
 --------------------------------------------------------------------}
+
+deriving instance Functor Pair
+deriving instance Traversable Pair
+deriving instance Eq a => Eq (Pair a)
+
+-- deriving instance Generic1 Pair
+-- deriving instance Generic (Pair a)
+
+instance Monoid a => Monoid (Pair a) where
+  mempty  = pure   mempty
+  mappend = liftA2 mappend
+  {-# INLINABLE mempty  #-}
+  {-# INLINABLE mappend #-}
 
 -- The derived foldMap inserts a mempty (in GHC 7.0.4).
 instance Foldable Pair where
