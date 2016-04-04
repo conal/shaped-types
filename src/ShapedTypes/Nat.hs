@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds, TypeOperators, TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-} -- see comment
 
-{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -23,6 +23,10 @@ module ShapedTypes.Nat where
 -- TODO: exports
 
 data Nat = Z | S Nat
+
+-- So we don't need -fno-warn-unticked-promoted-constructors
+type Z = 'Z
+type S = 'S
 
 infixl 6 +
 
