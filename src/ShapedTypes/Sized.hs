@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE FlexibleContexts    #-}
