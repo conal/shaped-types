@@ -20,8 +20,7 @@
 
 AbsTyPragmas
 
-{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wall -fno-warn-orphans #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -37,7 +36,6 @@ AbsTyPragmas
 -- 
 -- Right-associated functor exponentiation
 ----------------------------------------------------------------------
-
 
 {-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
 

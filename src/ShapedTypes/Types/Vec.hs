@@ -8,7 +8,7 @@
 
 AbsTyPragmas
 
-{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP

@@ -20,7 +20,7 @@
 
 AbsTyPragmas
 
-{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -37,6 +37,11 @@ AbsTyPragmas
 -- 
 -- Length-typed lists/vectors
 ----------------------------------------------------------------------
+
+{-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
+
+-- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
+-- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
 
 module ShapedTypes.Vec (Vec(..)) where
 

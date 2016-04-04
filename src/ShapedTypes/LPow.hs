@@ -20,10 +20,9 @@
 
 AbsTyPragmas
 
-{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wall -fno-warn-orphans #-}
 
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
+-- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
 
 ----------------------------------------------------------------------
@@ -37,6 +36,8 @@ AbsTyPragmas
 -- 
 -- Right-associated functor exponentiation
 ----------------------------------------------------------------------
+
+{-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
 
 -- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
 -- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
@@ -62,8 +63,6 @@ module ShapedTypes.LPow
 -- thus probably want to comment out all or some of the `SPEC`s in `SPECS` while
 -- developing.
 
-AbsTyImports
-
 import Data.Function (on)
 import Control.Arrow (first)
 import Control.Applicative (liftA2)
@@ -72,7 +71,6 @@ import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
 
-import Circat.Rep
 import Circat.Misc ((<~),showsUnary)
 
 import ShapedTypes.ApproxEq

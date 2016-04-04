@@ -13,16 +13,10 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeOperators         #-}
 
-{-# OPTIONS_GHC -Wall #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wall -fno-warn-orphans #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 -- {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
-
--- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
--- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
--- {-# OPTIONS_GHC -dverbose-core2core #-}
 
 ----------------------------------------------------------------------
 -- |
@@ -35,6 +29,11 @@
 -- 
 -- Some data types for specializing
 ----------------------------------------------------------------------
+
+{-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
+
+-- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
+-- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
 
 module ShapedTypes.Pair (Pair(..)) where
 

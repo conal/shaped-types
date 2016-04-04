@@ -18,7 +18,7 @@
 
 {-# LANGUAGE UndecidableInstances #-} -- See below
 
-{-# OPTIONS_GHC -Wall -fno-warn-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -Wall #-}
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 
 -- #define TESTING
