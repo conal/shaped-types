@@ -49,7 +49,6 @@ import GHC.Generics (Generic1(..),U1(..),Par1(..),(:*:)(..))
 import Data.Key
 
 import Circat.Classes (unitIf)
-import Circat.Rep
 import Circat.Misc (Unit,(:*))
 
 AbsTyImports
@@ -131,16 +130,6 @@ instance Generic1 (Vec (S n)) where
   type Rep1 (Vec (S n)) = Par1 :*: Vec n
   from1 (a :< as) = Par1 a :*: as
   to1 (Par1 a :*: as) = a :< as
-
-instance HasRep (Vec Z a) where
-  type Rep (Vec Z a) = ()
-  repr ZVec = ()
-  abst () = ZVec
-
-instance HasRep (Vec (S n) a) where
-  type Rep (Vec (S n) a) = (a,Vec n a)
-  repr (a :< as) = (a, as)
-  abst (a, as) = (a :< as)
 
 {--------------------------------------------------------------------
     keys package

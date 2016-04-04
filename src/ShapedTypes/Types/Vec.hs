@@ -1,20 +1,8 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE DeriveFoldable      #-}
-{-# LANGUAGE DeriveFunctor       #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE DeriveTraversable   #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeOperators       #-}
 
 #include "Circat/AbsTy.inc"
 
@@ -41,6 +29,8 @@ module ShapedTypes.Types.Vec (Vec(..)) where
 
 import Prelude hiding (id,(.))
 
+import Circat.Rep
+
 import ShapedTypes.Nat
 
 infixr 5 :<
@@ -51,3 +41,13 @@ data Vec :: Nat -> * -> * where
   ZVec :: Vec Z a 
   (:<) :: a -> Vec n a -> Vec (S n) a
 -- deriving Typeable
+
+instance HasRep (Vec Z a) where
+  type Rep (Vec Z a) = ()
+  repr ZVec = ()
+  abst () = ZVec
+
+instance HasRep (Vec (S n) a) where
+  type Rep (Vec (S n) a) = (a,Vec n a)
+  repr (a :< as) = (a, as)
+  abst (a, as) = (a :< as)
