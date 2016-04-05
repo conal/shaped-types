@@ -30,7 +30,7 @@
 -- Some data types for specializing
 ----------------------------------------------------------------------
 
-{-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
+-- {-# OPTIONS_GHC -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings #-}
 
 -- {-# OPTIONS_GHC -fplugin-opt=ReificationRules.Plugin:trace #-}
 -- {-# OPTIONS_GHC -ddump-rule-rewrites #-}
