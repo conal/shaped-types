@@ -40,18 +40,16 @@ infixl 6 -
 
 -- Experiment:
 -- | Difference of type-level numbers
-type family (a :: Nat) - (b :: Nat) :: Nat
-
-type instance   n -  Z  = n
-type instance S n - S m = n - m
+type family (a :: Nat) - (b :: Nat) :: Nat where
+  n   - Z   = n
+  S n - S m = n - m
 
 infixl 7 *
 
 -- | Product of type-level numbers
-type family (a :: Nat) * (b :: Nat) :: Nat
-
-type instance a *  Z  = a
-type instance a * S b = a + (a * b)
+type family (a :: Nat) * (b :: Nat) :: Nat where
+  a *  Z  = a
+  a * S b = a + (a * b)
 
 --     Nested type family application
 --       in the type family application: a + (a * b)
@@ -61,10 +59,9 @@ type instance a * S b = a + (a * b)
 infixr 8 ^
 
 -- | Exponentiating type-level numbers
-type family (a :: Nat) ^ (b :: Nat) :: Nat
-
-type instance a ^   Z = S Z
-type instance a ^ S b = a * (a ^ b)
+type family (a :: Nat) ^ (b :: Nat) :: Nat where
+  a ^   Z = S Z
+  a ^ S b = a * (a ^ b)
 
 type N0  = Z
 
