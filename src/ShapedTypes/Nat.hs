@@ -31,10 +31,9 @@ type S = 'S
 infixl 6 +
 
 -- | Sum of type-level numbers
-type family (a :: Nat) + (b :: Nat) :: Nat
-
-type instance a +  Z  = a
-type instance a + S b = S (a + b)
+type family (a :: Nat) + (b :: Nat) :: Nat where
+  a +  Z  = a
+  a + S b = S (a + b)
 
 infixl 6 -
 
