@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies  #-}
 
@@ -22,13 +24,14 @@ import Prelude hiding (zip,zipWith)
 
 import Control.Applicative (liftA2)
 import GHC.Generics
+import Data.Void
 
 import Data.Key
 
 import ShapedTypes.Misc (inComp,inComp2)
 
 {--------------------------------------------------------------------
-    Par1
+    newtype Par1 p = Par1 { unPar1 :: p }
 --------------------------------------------------------------------}
 
 instance Zip Par1 where zipWith = liftA2
@@ -47,7 +50,7 @@ instance Adjustable Par1 where adjust h () = fmap h
 
 
 {--------------------------------------------------------------------
-    Comp1
+    newtype (g :.: f) p = Comp1 { unComp1 :: g (f p) }
 --------------------------------------------------------------------}
 
 instance (Zip f, Zip g) => Zip (g :.: f) where
@@ -94,3 +97,23 @@ instance (Indexable g, Indexable f) =>
 
 instance (Adjustable g, Adjustable f) => Adjustable (g :.: f) where
   adjust h (gk,fk) = inComp (adjust (adjust h fk) gk)
+
+{--------------------------------------------------------------------
+    data U1 (p :: *) = U1
+--------------------------------------------------------------------}
+
+-- Worthwhile?
+
+instance Zip U1 where zipWith = liftA2
+
+type instance Key U1 = Void
+
+instance Keyed U1 where mapWithKey _ U1 = U1
+
+instance ZipWithKey U1
+
+instance Lookup U1 where lookup = lookupDefault
+
+instance Indexable U1 where index U1 = \ case
+
+instance Adjustable U1 where adjust = const (const id)
