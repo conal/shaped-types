@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, TypeOperators #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE TypeFamilies  #-}
+{-# LANGUAGE TypeOperators #-}
+
 {-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -32,6 +35,8 @@ import Control.Applicative (liftA2)
 
 import GHC.Generics hiding (C)
 
+import Control.Newtype (Newtype(..))
+
 -- | Add post- and pre-processing
 (<--) :: (b -> b') -> (a' -> a) -> ((a -> b) -> (a' -> b'))
 (h <-- f) g = h . g . f
@@ -59,7 +64,7 @@ instance (Applicative g, Applicative f) => Applicative (g :.: f) where
 
 #endif
 
--- | Apply a unary function within the 'O' constructor.
+-- | Apply a unary function within the 'Comp1' constructor.
 inComp :: (g (f a) -> g' (f' a')) -> ((g :.: f) a -> (g' :.: f') a')
 inComp = Comp1 <-- unComp1
 
@@ -67,3 +72,19 @@ inComp = Comp1 <-- unComp1
 inComp2 :: (  g (f a)   -> g' (f' a')     -> g'' (f'' a''))
         -> ((g :.: f) a -> (g' :.: f') a' -> (g'' :.: f'') a'')
 inComp2 = inComp <-- unComp1
+
+{--------------------------------------------------------------------
+    Newtype
+--------------------------------------------------------------------}
+
+-- See <https://github.com/jcristovao/newtype-generics/pull/5>
+
+-- Type generalization of underF from newtype-generics.
+underF :: (Newtype n, Newtype n', o' ~ O n', o ~ O n, Functor f, Functor g)
+       => (o -> n) -> (f n -> g n') -> (f o -> g o')
+underF _ f = fmap unpack . f . fmap pack
+
+-- Type generalization of overF from newtype-generics.
+overF :: (Newtype n, Newtype n', o' ~ O n', o ~ O n, Functor f, Functor g)
+      => (o -> n) -> (f o -> g o') -> (f n -> g n')
+overF _ f = fmap pack . f . fmap unpack
