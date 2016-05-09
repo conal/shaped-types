@@ -24,10 +24,11 @@ Library
                      , ghc-prim
                      , QuickCheck >= 2.7.3
                      , keys
+                     , newtype-generics
                      , TypeCompose
                      , circat
 
-                     , reification-rules
+--                      , reification-rules
 
 -- TODO: can I drop ghc-prim and still compile with the reification plugin?
 
@@ -37,12 +38,14 @@ Library
                        ShapedTypes.ApproxEq
                        ShapedTypes.Linear
                        ShapedTypes.Scan
+                       ShapedTypes.ScanF
                        ShapedTypes.FFT
                        ShapedTypes.Pair
                        ShapedTypes.Nat
                        ShapedTypes.Vec
                        ShapedTypes.RPow
                        ShapedTypes.LPow
+                       ShapedTypes.Fams
   Other-Modules:
                        ShapedTypes.Types.Pair
                        ShapedTypes.Types.Vec
@@ -50,12 +53,13 @@ Library
                        ShapedTypes.Types.LPow
 
 
-  ghc-options:         -Wall
+  ghc-options:         -Wall -O
 
 --                        -fplugin=ReificationRules.Plugin -dcore-lint -fexpose-all-unfoldings
 
 --                        -fplugin-opt=ReificationRules.Plugin:trace
 
+--                        -ddump-rule-firings
 
 --                        -ddump-rule-rewrites
 
@@ -65,5 +69,6 @@ Library
 
                        -dsuppress-idinfo -dsuppress-module-prefixes
 
+                       -fsimpl-tick-factor=200
 
 -- TODO: Add a flag for whether to compile with reification.
