@@ -45,6 +45,7 @@ type family LPow h n where
   LPow h Z     = Par1
   LPow h (S n) = LPow h n :.: h
 
+
 -- | Uniform pair
 type UPair = Par1 :*: Par1
 
