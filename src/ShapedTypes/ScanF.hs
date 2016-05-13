@@ -29,14 +29,14 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.ScanF
-  ( LScanTy, LScan(..), LFScan
-  , lscanTraversable
+  ( And1, pattern And1, unAnd1, LScanTy, LScan(..), LFScan
+  , lscanTraversable, lscanAla
   , lsums, lproducts, lAlls, lAnys, lParities, iota
   , genericLscan
   -- , lscanInc, lsums', lproducts', scanlT, scanlTEx
   ) where
 
-import Prelude hiding (zip,zipWith)
+import Prelude hiding (zip,zipWith,unzip)
 
 import Data.Monoid ((<>),Sum(..),Product(..),All(..),Any(..))
 import Control.Arrow ((***),first)
@@ -55,26 +55,26 @@ import ShapedTypes.Misc (underF)
     LScan class
 --------------------------------------------------------------------}
 
-type AndTot f = f :*: Par1
+type And1 f = f :*: Par1
 
-pattern AndTot :: f a -> a -> AndTot f a
-pattern AndTot fa a = fa :*: Par1 a
+pattern And1 :: f a -> a -> And1 f a
+pattern And1 fa a = fa :*: Par1 a
 
-andTot :: f a :* a -> AndTot f a
-andTot = uncurry AndTot
+andTot :: f a :* a -> And1 f a
+andTot = uncurry And1
 -- andTot (fa,a) = fa :*: Par1 a
 
-unAndTot :: AndTot f a -> f a :* a
-unAndTot (fa :*: Par1 a) = (fa,a)
+unAnd1 :: And1 f a -> f a :* a
+unAnd1 (fa :*: Par1 a) = (fa,a)
 
--- unAndTot (AndTot fa a) = (fa,a)
+-- unAnd1 (And1 fa a) = (fa,a)
 --
 --     Pattern match(es) are non-exhaustive
---     In an equation for ‘unAndTot’: Patterns not matched: _
+--     In an equation for ‘unAnd1’: Patterns not matched: _
 -- 
 -- GHC 8.1.20160405 bug?
 
-type LScanTy f = forall a. Monoid a => f a -> AndTot f a
+type LScanTy f = forall a. Monoid a => f a -> And1 f a
 
 class LScan f where
   lscan :: LScanTy f
@@ -85,7 +85,7 @@ class LScan f where
 -- TODO: Try removing lscanDummy and the comment and recompiling with reification
 
 -- | Traversable version (sequential)
-scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> AndTot t b
+scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> And1 t b
 scanlT op e = andTot . swap . mapAccumL (\ a b -> (a `op` b,a)) e
 {-# INLINABLE scanlT #-}
 
@@ -105,34 +105,35 @@ adjustl = fmap . mappend
 
 -- Left-scan via a 'Newtype'
 lscanAla :: forall n o f. (Newtype n, o ~ O n, LFScan f, Monoid n)
-         => (o -> n) -> f o -> AndTot f o
+         => (o -> n) -> f o -> And1 f o
 lscanAla = flip underF lscan
 
 -- lscanAla k = underF k lscan
 -- lscanAla _k = fmap unpack . lscan . fmap (pack :: o -> n)
 
-lsums :: (LFScan f, Num b) => f b -> AndTot f b
+-- lsums :: (LFScan f, Num b) => f b -> And1 f b
+lsums :: (LFScan f, Num b) => f b -> (f :*: Par1) b
 lsums = lscanAla Sum
 
-lproducts :: (LFScan f, Num b) => f b -> AndTot f b
+lproducts :: (LFScan f, Num b) => f b -> And1 f b
 lproducts = lscanAla Product
 
-lAlls :: LFScan f => f Bool -> AndTot f Bool
+lAlls :: LFScan f => f Bool -> And1 f Bool
 lAlls = lscanAla All
 
-lAnys :: LFScan f => f Bool -> AndTot f Bool
+lAnys :: LFScan f => f Bool -> And1 f Bool
 lAnys = lscanAla Any
 
-lParities :: LFScan f => f Bool -> AndTot f Bool
+lParities :: LFScan f => f Bool -> And1 f Bool
 lParities = lscanAla Parity
 
 -- | Numbers from 0 to n (size of f). Named for APL iota operation (but 0 based).
-iota' :: (LScan f, Traversable f, Applicative f, Num b) => AndTot f b
+iota' :: (LScan f, Traversable f, Applicative f, Num b) => And1 f b
 iota' = lsums (pure 1)
 
 -- | Numbers from 0 to n-1. Named for APL iota operation (but 0 based).
 iota :: (LScan f, Traversable f, Applicative f, Num b) => f b
-iota = fst (unAndTot iota')
+iota = fst (unAnd1 iota')
 
 {--------------------------------------------------------------------
     Generic support
@@ -141,54 +142,57 @@ iota = fst (unAndTot iota')
 instance LScan V1 where lscan = \ case
 
 lscanEmpty :: LScanTy f
-lscanEmpty fa = AndTot fa mempty
+lscanEmpty fa = And1 fa mempty
 
 instance LScan U1       where lscan = lscanEmpty
 instance LScan (K1 i c) where lscan = lscanEmpty
 
 instance LScan Par1 where
-  lscan (Par1 a) = AndTot (Par1 mempty) a
+  lscan (Par1 a) = And1 (Par1 mempty) a
 
-firstAndTot :: (f a -> g a) -> AndTot f a -> AndTot g a
-firstAndTot q (fa :*: Par1 a) = AndTot (q fa) a
+firstAnd1 :: (f a -> g a) -> And1 f a -> And1 g a
+firstAnd1 q (fa :*: Par1 a) = And1 (q fa) a
 
--- firstAndTot (AndTot fa a) q = AndTot (q fa) a  -- non-exhaustive (GHC bug?)
+-- firstAnd1 (And1 fa a) q = And1 (q fa) a  -- non-exhaustive (GHC bug?)
 
 either1 :: (f a -> b) -> (g a -> b) -> (f :+: g) a -> b
 either1 fab _ (L1 fa) = fab fa
 either1 _ gab (R1 ga) = gab ga
 
 instance (LScan f, LScan g) => LScan (f :+: g) where
-  lscan = either1 (firstAndTot L1 . lscan) (firstAndTot R1 . lscan)
+  lscan = either1 (firstAnd1 L1 . lscan) (firstAnd1 R1 . lscan)
 
 --   lscan = either1 (foo L1) (foo R1)
 --    where
---      foo k = firstAndTot k . lscan
+--      foo k = firstAnd1 k . lscan
 
 -- instance (LScan f, LScan g) => LScan (f :+: g) where
---   lscan (L1 fa) = firstAndTot L1 (lscan fa)
---   lscan (R1 ga) = firstAndTot R1 (lscan ga)
+--   lscan (L1 fa) = firstAnd1 L1 (lscan fa)
+--   lscan (R1 ga) = firstAnd1 R1 (lscan ga)
 
 instance (LScan f, LFScan g) => LScan (f :*: g) where
-  lscan (fa :*: ga) = AndTot (fa' :*: ga') gx
+  lscan (fa :*: ga) = And1 (fa' :*: ga') gx
    where
-     AndTot fa' fx = lscan fa
-     AndTot ga' gx = adjustl fx (lscan ga)
+     And1 fa' fx = lscan fa
+     And1 ga' gx = adjustl fx (lscan ga)
   {-# INLINABLE lscan #-}
 
 instance (LScan g, LFScan f, Zip g) => LScan (g :.: f) where
-  lscan (Comp1 gfa) = AndTot (Comp1 (zipWith adjustl tots' gfa')) tot
+  lscan (Comp1 gfa) = And1 (Comp1 (zipWith adjustl tots' gfa')) tot
    where
-     (gfa', tots)   = unzipAndTot (lscan <$> gfa)
-     AndTot tots' tot = lscan tots
+     (gfa', tots)     = unzipAnd1 (lscan <$> gfa)
+     And1 tots' tot = lscan tots
   {-# INLINABLE lscan #-}
 
-unzipAndTot :: forall g f a. Functor g => g (AndTot f a) -> g (f a) :* g a
-unzipAndTot (fmap unAndTot -> ps) = (fst <$> ps, snd <$> ps)
+unzipAnd1 :: forall g f a. Functor g => g (And1 f a) -> g (f a) :* g a
+unzipAnd1 = unzip . fmap unAnd1
+
+unzip :: Functor f => f (a, b) -> (f a, f b)
+unzip ps = (fst <$> ps, snd <$> ps)
 
 instance LScan f => LScan (M1 i c f) where
-  lscan = firstAndTot M1 . lscan . unM1
+  lscan = firstAnd1 M1 . lscan . unM1
 
 -- | Generic left scan
 genericLscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
-genericLscan = firstAndTot to1 . lscan . from1
+genericLscan = firstAnd1 to1 . lscan . from1

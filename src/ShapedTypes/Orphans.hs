@@ -50,6 +50,33 @@ instance Adjustable Par1 where adjust h () = fmap h
 
 
 {--------------------------------------------------------------------
+    data (:*:) f g (p :: *) = f p :*: g p
+--------------------------------------------------------------------}
+
+instance (Zip f, Zip g) => Zip (f :*: g) where
+  zipWith h (fa :*: ga) (fa' :*: ga') =
+    zipWith h fa fa' :*: zipWith h ga ga'
+
+type instance Key (f :*: g) = Either (Key f) (Key g)
+
+instance (Keyed g, Keyed f) => Keyed (f :*: g) where
+  mapWithKey q (fa :*: ga) = mapWithKey (q . Left) fa :*: mapWithKey (q . Right) ga
+
+instance (Keyed g, Zip g, Keyed f, Zip f) => ZipWithKey (f :*: g)
+
+instance (Indexable g, Indexable f) => Lookup (f :*: g) where
+  lookup = lookupDefault
+
+instance (Indexable g, Indexable f) =>
+         Indexable (f :*: g) where
+  index (fa :*: _) (Left  fk) = fa ! fk
+  index (_ :*: ga) (Right gk) = ga ! gk
+
+instance (Adjustable g, Adjustable f) => Adjustable (f :*: g) where
+  adjust h (Left  fk) (fa :*: ga) = adjust h fk fa :*: ga
+  adjust h (Right gk) (fa :*: ga) = fa :*: adjust h gk ga
+
+{--------------------------------------------------------------------
     newtype (g :.: f) p = Comp1 { unComp1 :: g (f p) }
 --------------------------------------------------------------------}
 
@@ -101,8 +128,6 @@ instance (Adjustable g, Adjustable f) => Adjustable (g :.: f) where
 {--------------------------------------------------------------------
     data U1 (p :: *) = U1
 --------------------------------------------------------------------}
-
--- Worthwhile?
 
 instance Zip U1 where zipWith = liftA2
 

@@ -46,6 +46,7 @@ Library
                        ShapedTypes.RPow
                        ShapedTypes.LPow
                        ShapedTypes.Fams
+                       ShapedTypes.Orphans
   Other-Modules:
                        ShapedTypes.Types.Pair
                        ShapedTypes.Types.Vec

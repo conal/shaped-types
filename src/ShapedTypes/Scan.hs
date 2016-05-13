@@ -28,11 +28,10 @@
 
 module ShapedTypes.Scan
   ( LScanTy, LScan(..), LFScan
-  , lscanTraversable
+  , lscanT, lscanTraversable
   , lsums, lproducts, lAlls, lAnys, lParities, iota
   , lscanProd, lscanProd', lscanComp, lscanComp'
   , genericLscan
-  -- , lscanInc, lsums', lproducts', scanlT, scanlTEx
   ) where
 
 import Prelude hiding (zip,unzip,zipWith)
@@ -58,12 +57,12 @@ class LScan f where
 -- TODO: Try removing lscanDummy and the comment and recompiling with reification
 
 -- | Traversable version (sequential)
-scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
-scanlT op e = swap . mapAccumL (\ a b -> (a `op` b,a)) e
-{-# INLINABLE scanlT #-}
+lscanT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
+lscanT op e = swap . mapAccumL (\ a b -> (a `op` b,a)) e
+{-# INLINABLE lscanT #-}
 
 lscanTraversable :: Traversable t => LScanTy t
-lscanTraversable = scanlT mappend mempty
+lscanTraversable = lscanT mappend mempty
 {-# INLINABLE lscanTraversable #-}
 
 type LFScan f = (Functor f, LScan f)

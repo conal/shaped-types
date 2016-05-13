@@ -42,6 +42,7 @@ import Data.Key
 import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Scan
+import qualified ShapedTypes.ScanF as F
 
 -- Type definition
 import ShapedTypes.Types.Pair
@@ -124,6 +125,10 @@ instance Sized Pair where
 
 instance LScan Pair where
   lscan (a :# b) = (mempty :# a, a <> b)
+  {-# INLINE lscan #-}
+
+instance F.LScan Pair where
+  lscan (a :# b) = F.AndTot (mempty :# a) (a <> b)
   {-# INLINE lscan #-}
 
 {--------------------------------------------------------------------

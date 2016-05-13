@@ -16,6 +16,9 @@
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 
+-- experiment
+{-# LANGUAGE PartialTypeSignatures #-}
+
 {-# LANGUAGE UndecidableInstances #-} -- See below
 
 {-# OPTIONS_GHC -Wall #-}

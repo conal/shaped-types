@@ -1,6 +1,8 @@
 {-# LANGUAGE TypeFamilies  #-}
 {-# LANGUAGE TypeOperators #-}
 
+{-# LANGUAGE UndecidableInstances #-}
+
 {-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -44,7 +46,6 @@ type family RPow h n where
 type family LPow h n where
   LPow h Z     = Par1
   LPow h (S n) = LPow h n :.: h
-
 
 -- | Uniform pair
 type UPair = Par1 :*: Par1
