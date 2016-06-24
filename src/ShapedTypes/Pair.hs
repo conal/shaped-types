@@ -128,7 +128,7 @@ instance LScan Pair where
   {-# INLINE lscan #-}
 
 instance F.LScan Pair where
-  lscan (a :# b) = F.AndTot (mempty :# a) (a <> b)
+  lscan (a :# b) = F.And1 (mempty :# a) (a <> b)
   {-# INLINE lscan #-}
 
 {--------------------------------------------------------------------
