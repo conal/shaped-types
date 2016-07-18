@@ -38,13 +38,14 @@ infixr 1 $@
 infixl 9 .@
 
 -- | Apply a linear transformation represented as a generalized matrix
-($@) :: (Foldable m, Applicative m, Functor n, Num a) =>
+($@) :: forall n m a. (Foldable m, Applicative m, Functor n, Num a) =>
         n (m a) -> m a -> n a
 mat $@ vec = (<.> vec) <$> mat
 {-# INLINE ($@) #-}
 
 -- | Compose linear transformations represented as generalized matrices
-(.@) :: ( Applicative o, Traversable n, Applicative n
+(.@) :: forall o n m a.
+        ( Applicative o, Traversable n, Applicative n
         , Traversable m, Applicative m, Num a ) =>
         o (n a) -> n (m a) -> o (m a)
 no .@ mn = transpose ((no $@) <$> transpose mn)
