@@ -1,4 +1,4 @@
--- {-# LANGUAGE #-}
+{-# LANGUAGE ExplicitForAll #-}
 {-# OPTIONS_GHC -Wall #-}
 
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
