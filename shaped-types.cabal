@@ -25,7 +25,6 @@ Library
                      , QuickCheck >= 2.7.3
                      , keys
                      , newtype-generics
-                     , TypeCompose
                      , circat
 
 --                      , reification-rules
