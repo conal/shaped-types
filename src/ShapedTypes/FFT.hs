@@ -45,8 +45,8 @@
 
 module ShapedTypes.FFT
   ( dft, FFT(..), DFTTy, genericFft, dftT, GFFT
-  -- Temporary while debugging
-  , twiddle, twiddles, omega, cis
+  -- -- Temporary while debugging
+  -- , twiddle, twiddles, omega, cis
   ) where
 
 import Prelude hiding (zipWith)
@@ -93,20 +93,19 @@ class FFT f where
 type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
 
 twiddle :: forall g f a. (AFS g, AFS f, RealFloat a) => Unop (g (f (Complex a)))
-twiddle = (zipWith.zipWith) (*) (twiddles (size @(g :.: f)))
--- twiddle = (zipWith.zipWith) (*) twiddles'
+-- twiddle = (zipWith.zipWith) (*) (twiddles (size @(g :.: f)))
+twiddle = (zipWith.zipWith) (*) twiddles'
 {-# INLINE twiddle #-}
 
--- Twiddle factors.
-twiddles :: (AFS g, AFS f, RealFloat a) => Int -> g (f (Complex a))
-twiddles = fmap powers . powers . omega
-{-# INLINE twiddles #-}
+-- -- Twiddle factors.
+-- twiddles :: (AFS g, AFS f, RealFloat a) => Int -> g (f (Complex a))
+-- twiddles = fmap powers . powers . omega
+-- {-# INLINE twiddles #-}
 
 -- twiddles n = powers <$> powers (omega n)
 
 twiddles' :: forall g f a. (AFS g, AFS f, RealFloat a) => g (f (Complex a))
 twiddles' = powers <$> powers (omega (size @(g :.: f)))
-
 
 omega :: (Integral n, RealFloat a) => n -> Complex a
 omega n = cis (- 2 * pi / fromIntegral n)
@@ -248,7 +247,8 @@ instance ( ATS h, ATS (FFO h), ATS (RPow (FFO h) n), ATS (LPow h n)
 #endif
 
 dft :: forall f a. (AFS f, RealFloat a) => Unop (f (Complex a))
-dft as = (<.> as) <$> twiddles (size @f)
+dft as = (<.> as) <$> twiddles'
+-- dft as = (<.> as) <$> twiddles (size @f)
 {-# INLINE dft #-}
 
 #if 0
@@ -258,6 +258,15 @@ as :: f C
 (<.> as) :: f C -> C
 twiddles (size @f) :: f (f C)
 (<.> as) <$> twiddles (size @f) :: f C
+#endif
+
+#if 0
+twiddles' :: (AFS g, AFS f, RealFloat a) => g (f (Complex a))
+
+as :: f C
+(<.> as) :: f C -> C
+twiddles' :: f (f C)
+(<.> as) <$> twiddles' :: f C
 
 #endif
 
@@ -304,10 +313,12 @@ p1 :: Pair C
 p1 = 1 :# 0
 
 tw1 :: LTree N1 (Pair C)
-tw1 = twiddles (size @(LTree N1 :.: Pair))
+tw1 = twiddles'
+-- tw1 = twiddles (size @(LTree N1 :.: Pair))
 
 tw2 :: LTree N2 (Pair C)
-tw2 = twiddles (size @(LTree N2 :.: Pair))
+tw2 = twiddles'
+-- tw2 = twiddles (size @(LTree N2 :.: Pair))
 
 -- Adapted from Dave's testing
 
@@ -359,7 +370,7 @@ dftTIsDftL :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
               f (Complex a) -> Bool
 dftTIsDftL = toList . dftT =~= dftL . toList
 
-dftIsDftL :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
+dftIsDftL :: (AFS f, RealFloat a, ApproxEq a) =>
              f (Complex a) -> Bool
 dftIsDftL = toList . dft =~= dftL . toList
 
