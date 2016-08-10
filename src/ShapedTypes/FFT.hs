@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE DefaultSignatures      #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -29,7 +30,7 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
 #endif
 
--- #define GenericPowFFT
+#define GenericPowFFT
 
 ----------------------------------------------------------------------
 -- |
@@ -66,9 +67,7 @@ import Circat.Complex
 import ShapedTypes.Misc
 import ShapedTypes.Sized
 import ShapedTypes.Scan (LScan,LFScan,lproducts,iota) -- , lsums
-#ifndef GenericPowFFT
 import ShapedTypes.Nat
-#endif
 import ShapedTypes.Pair
 import ShapedTypes.Vec
 import ShapedTypes.LPow (LPow)
@@ -85,11 +84,17 @@ type DFTTy f = forall a. RealFloat a => f (Complex a) -> FFO f (Complex a)
 class FFT f where
   type FFO f :: * -> *
   fft :: DFTTy f
+  -- default fft :: ( Generic1 f, Generic1 (FFO f)
+  --                , FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f) ) => DFTTy f
+  -- fft = genericFft
   -- Temporary hack to avoid newtype-like representation.
   fftDummy :: f a
   fftDummy = undefined
 
-type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
+-- TODO: Eliminate FFO, in favor of fft :: Unop (f (Complex a)).
+-- Use dft as spec.
+
+type AFS h = (Applicative h, Zip h, Sized h, LScan h)
 
 twiddle :: forall g f a. (AFS g, AFS f, RealFloat a) => Unop (g (f (Complex a)))
 twiddle = (zipWith.zipWith) (*) twiddles
@@ -144,26 +149,8 @@ instance ( Applicative f , Zip f,  Traversable f , Traversable g
   twiddle   :: g' (f  a)  -> g' (f  a)
   fmap fft  :: g' (f  a)  -> g' (f' a)
   transpose :: g' (f' a)  -> f' (g' a)
-  Comp1     :: g  (f a)   -> (g :. f) a
+  Comp1     :: f' (g' a)  -> (f' :. g') a
 #endif
-
--- | Generic FFT
-genericFft :: ( Generic1 f, Generic1 (FFO f)
-              , FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f) ) => DFTTy f
-genericFft = inGeneric1 fft
-
--- | Generic FFT
-
--- genericFft :: DFTTy f
-
--- genericFft :: ( FFO (Rep1 f) ~ Rep1 g, FFT (Rep1 f)
---               , Generic1 g, Generic1 f, RealFloat a )
---            => f (Complex a) -> g (Complex a)
--- genericFft = inGeneric1 fft
-
-type GFFT f = (Generic1 f, Generic1 (FFO f), FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f))
-
-#define GenericFFT(f,g) instance GFFT (f)(g) => FFT (f)(g) where fft = genericFft
 
 -- Generalization of 'dft' to traversables.
 dftT :: forall f a. (AFS f, Traversable f, RealFloat a)
@@ -175,7 +162,19 @@ dftT xs = out <$> indices
    om      = omega (size @f)
 {-# INLINE dftT #-}
 
--- TODO: Replace Applicative with Zippable
+-- | Generic FFT
+genericFft :: ( Generic1 f, Generic1 (FFO f)
+              , FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f) ) => DFTTy f
+genericFft = inGeneric1 fft
+
+type GFFT f = (Generic1 f, Generic1 (FFO f), FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (FFO f))
+
+#define GenericFFT(f,g) instance GFFT (f) => FFT (f) where { type FFO (f) = (g); fft = genericFft }
+
+-- #define GenericFFT(f,g) instance GFFT (f) => FFT (f) where { type FFO (f) = g; INLINE }
+
+-- TODO: Replace Applicative with Zippable.
+-- Can't, because Traversable needs Applicative.
 
 -- Perhaps dftT isn't very useful. Its result and argument types match, unlike fft.
 
@@ -201,8 +200,8 @@ instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n), Sized (Vec n) 
 
 #ifdef GenericPowFFT
 
-GenericFFT(RPow h n, LPow k n)
-GenericFFT(LPow h n, RPow k n)
+GenericFFT(RPow h n, LPow (FFO h) n)
+GenericFFT(LPow h n, RPow (FFO h) n)
 
 #else
 
@@ -239,7 +238,7 @@ instance ( ATS h, ATS (FFO h), ATS (RPow (FFO h) n), ATS (LPow h n)
 
 #ifdef TESTING
 
-dft :: forall f a. (AFS f, RealFloat a) => Unop (f (Complex a))
+dft :: forall f a. (AFS f, Foldable f, RealFloat a) => Unop (f (Complex a))
 dft as = (<.> as) <$> twiddles
 {-# INLINE dft #-}
 
@@ -355,7 +354,7 @@ dftTIsDftL :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
               f (Complex a) -> Bool
 dftTIsDftL = toList . dftT =~= dftL . toList
 
-dftIsDftL :: (AFS f, RealFloat a, ApproxEq a) =>
+dftIsDftL :: (AFS f, Foldable f, RealFloat a, ApproxEq a) =>
              f (Complex a) -> Bool
 dftIsDftL = toList . dft =~= dftL . toList
 
