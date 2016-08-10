@@ -24,6 +24,7 @@ Library
                      , ghc-prim
                      , QuickCheck >= 2.7.3
                      , keys
+                     , pointed
                      , newtype-generics
                      , circat
 
