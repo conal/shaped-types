@@ -47,6 +47,7 @@ import Control.Applicative (liftA2)
 import Data.Monoid ((<>))
 import GHC.Generics (Generic1(..),U1(..),Par1(..),(:*:)(..))
 
+import Data.Pointed
 import Data.Key
 
 import ShapedTypes.ApproxEq
@@ -124,8 +125,11 @@ instance Generic1 (Vec (S n)) where
   to1 (Par1 a :*: as) = a :< as
 
 {--------------------------------------------------------------------
-    keys package
+    pointed and keys packages
 --------------------------------------------------------------------}
+
+instance Applicative (Vec n) => Pointed (Vec n) where
+  point = pure
 
 instance (Functor (Vec n), Applicative (Vec n)) => Zip (Vec n) where
   zipWith = liftA2
