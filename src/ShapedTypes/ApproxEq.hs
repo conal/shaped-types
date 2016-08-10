@@ -7,7 +7,7 @@
 ----------------------------------------------------------------------
 -- |
 -- Module      :  ShapedTypes.ApproxEq
--- Copyright   :  (c) 2015 Conal Elliott
+-- Copyright   :  (c) 2015-2016 Conal Elliott
 -- License     :  BSD3
 --
 -- Maintainer  :  conal@conal.net
