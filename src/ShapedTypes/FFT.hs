@@ -24,7 +24,7 @@
 {-# OPTIONS_GHC -Wall #-}
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 
--- #define TESTING
+#define TESTING
 
 #ifdef TESTING
 {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
@@ -35,7 +35,7 @@
 ----------------------------------------------------------------------
 -- |
 -- Module      :  ShapedTypes.FFT
--- Copyright   :  (c) 2015 Conal Elliott
+-- Copyright   :  (c) 2015-2016 Conal Elliott
 --
 -- Maintainer  :  conal@conal.net
 -- Stability   :  experimental
@@ -44,17 +44,19 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.FFT
-  ( FFT(..), DFTTy, genericFft, dftTraversable, GFFT
+  ( dft, FFT(..), DFTTy, genericFft, dftT, GFFT
   -- Temporary while debugging
   , twiddle, twiddles, omega, cis
   ) where
 
 import Prelude hiding (zipWith)
-import GHC.Generics hiding (C)
+import GHC.Generics hiding (C,S)
 
 #ifdef TESTING
-import Test.QuickCheck (quickCheck)
+import Data.Foldable (toList)
+-- import Test.QuickCheck (quickCheck)
 import Test.QuickCheck.All (quickCheckAll)
+import ShapedTypes.ApproxEq
 #endif
 
 import Data.Key
@@ -64,7 +66,7 @@ import Circat.Complex
 
 import ShapedTypes.Misc
 import ShapedTypes.Sized
-import ShapedTypes.Scan (LScan,lproducts,iota) -- , lsums
+import ShapedTypes.Scan (LScan,LFScan,lproducts,iota) -- , lsums
 #ifndef GenericPowFFT
 import ShapedTypes.Nat
 #endif
@@ -92,6 +94,7 @@ type AFS h = (Applicative h, Zip h, Foldable h, Sized h, LScan h)
 
 twiddle :: forall g f a. (AFS g, AFS f, RealFloat a) => Unop (g (f (Complex a)))
 twiddle = (zipWith.zipWith) (*) (twiddles (size @(g :.: f)))
+-- twiddle = (zipWith.zipWith) (*) twiddles'
 {-# INLINE twiddle #-}
 
 -- Twiddle factors.
@@ -100,6 +103,10 @@ twiddles = fmap powers . powers . omega
 {-# INLINE twiddles #-}
 
 -- twiddles n = powers <$> powers (omega n)
+
+twiddles' :: forall g f a. (AFS g, AFS f, RealFloat a) => g (f (Complex a))
+twiddles' = powers <$> powers (omega (size @(g :.: f)))
+
 
 omega :: (Integral n, RealFloat a) => n -> Complex a
 omega n = cis (- 2 * pi / fromIntegral n)
@@ -112,7 +119,7 @@ cis :: RealFloat a => a -> Complex a
 cis a = cos a :+ sin a
 
 -- Powers of x, starting x^0. Uses 'LScan' for log parallel time
-powers :: (LScan f, Applicative f, Num a) => a -> f a
+powers :: (LFScan f, Applicative f, Num a) => a -> f a
 powers = fst . lproducts . pure
 {-# INLINE powers #-}
 
@@ -169,18 +176,18 @@ type GFFT f = (Generic1 f, Generic1 (FFO f), FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (
 #define GenericFFT(f,g) instance GFFT (f)(g) => FFT (f)(g) where fft = genericFft
 
 -- Generalization of 'dft' to traversables.
-dftTraversable :: forall f a. (AFS f, Traversable f, RealFloat a)
-               => Unop (f (Complex a))
-dftTraversable xs = out <$> indices
+dftT :: forall f a. (AFS f, Traversable f, RealFloat a)
+     => Unop (f (Complex a))
+dftT xs = out <$> indices
  where
    out k   = sum (zipWith (\ n x -> x * ok^n) indices xs) where ok = om ^ k
    indices = iota :: f Int
    om      = omega (size @f)
-{-# INLINE dftTraversable #-}
+{-# INLINE dftT #-}
 
 -- TODO: Replace Applicative with Zippable
 
--- Perhaps dftTraversable isn't very useful. Its result and argument types match, unlike fft.
+-- Perhaps dftT isn't very useful. Its result and argument types match, unlike fft.
 
 {--------------------------------------------------------------------
     Specialized FFT instances.
@@ -199,7 +206,7 @@ instance FFT Pair where
 instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n), Sized (Vec n) )
       => FFT (Vec n) where
   type FFO (Vec n) = Vec n
-  fft = dftTraversable
+  fft = dftT
   {-# INLINE fft #-}
 
 #ifdef GenericPowFFT
@@ -219,8 +226,8 @@ instance FFT (RPow h Z) where
 instance ( ATS h, ATS (FFO h), ATS (LPow (FFO h) n), ATS (RPow h n)
          , LScan (RPow h n), LScan (FFO h)
          , FFT h, FFT (RPow h n), FFO (RPow h n) ~ LPow (FFO h) n )
-      => FFT (RPow h ('S n)) where
-  type FFO (RPow h ('S n)) = LPow (FFO h) ('S n)
+      => FFT (RPow h (S n)) where
+  type FFO (RPow h (S n)) = LPow (FFO h) (S n)
   fft = L.B . unComp1 . fft . Comp1 . R.unB
   {-# INLINE fft #-}
 
@@ -232,13 +239,32 @@ instance FFT (LPow h Z) where
 instance ( ATS h, ATS (FFO h), ATS (RPow (FFO h) n), ATS (LPow h n)
          , LScan (RPow (FFO h) n), LScan h
          , FFT h, FFT (LPow h n), FFO (LPow h n) ~ RPow (FFO h) n )
-      => FFT (LPow h ('S n)) where
-  type FFO (LPow h ('S n)) = RPow (FFO h) ('S n)
+      => FFT (LPow h (S n)) where
+  type FFO (LPow h (S n)) = RPow (FFO h) (S n)
   fft = R.B . unComp1 . fft . Comp1 . L.unB
   {-# INLINE fft #-}
 
 -- TODO: Revisit these constraints, which don't quite have the duality I expected.
 #endif
+
+dft :: forall f a. (AFS f, RealFloat a) => Unop (f (Complex a))
+dft as = (<.> as) <$> twiddles (size @f)
+{-# INLINE dft #-}
+
+#if 0
+twiddles :: (AFS g, AFS f, RealFloat a) => Int -> g (f (Complex a))
+
+as :: f C
+(<.> as) :: f C -> C
+twiddles (size @f) :: f (f C)
+(<.> as) <$> twiddles (size @f) :: f C
+
+#endif
+
+-- Binary dot product
+infixl 7 <.>
+(<.>) :: (Foldable f, Zip f, Num a) => f a -> f a -> a
+u <.> v = sum (zipWith (*) u v)
 
 #ifdef TESTING
 
@@ -247,59 +273,54 @@ instance ( ATS h, ATS (FFO h), ATS (RPow (FFO h) n), ATS (LPow h n)
 --------------------------------------------------------------------}
 
 -- Adapted from Dave's definition
-dft :: RealFloat a => Unop [Complex a]
-dft xs = [ sum [ x * ok^n | x <- xs | n <- [0 :: Int ..] ]
-         | k <- [0 .. length xs - 1], let ok = om ^ k ]
+dftL :: RealFloat a => Unop [Complex a]
+dftL xs = [ sum [ x * ok^n | x <- xs | n <- [0 :: Int ..] ]
+          | k <- [0 .. length xs - 1], let ok = om ^ k ]
  where
    om = omega (length xs)
-
-dftQ :: forall f a. (AFS f, RealFloat a) => Unop (f (Complex a))
-dftQ as = (<.> as) <$> twiddles (size @f)
-{-# INLINE dftQ #-}
-
--- Binary dot product
-infixl 7 <.>
-(<.>) :: (Foldable f, Applicative f, Num a) => f a -> f a -> a
-u <.> v = sum (zipWith (*) u v)
 
 {--------------------------------------------------------------------
     Tests
 --------------------------------------------------------------------}
 
--- > powers 2 :: L.Tree N2 Int
+-- > powers 2 :: LTree N2 Int
 -- B (B (L ((1 :# 2) :# (4 :# 8))))
--- > powers 2 :: L.Tree N3 Int
+-- > powers 2 :: LTree N3 Int
 -- B (B (B (L (((1 :# 2) :# (4 :# 8)) :# ((16 :# 32) :# (64 :# 128))))))
 
 -- PrettyDouble doesn't yet have an Arbitrary instance, so use Double for now
 type C = Complex Double
 
-fftl :: (FFT f f', Foldable f', RealFloat a) => f (Complex a) -> [Complex a]
+fftl :: (FFT f, Foldable (FFO f), RealFloat a) => f (Complex a) -> [Complex a]
 fftl = toList . fft
 
-type LC n = L.Tree n C
-type RC n = R.Tree n C
+type LTree = L.Pow Pair
+type RTree = R.Pow Pair
+
+type LC n = LTree n C
+type RC n = RTree n C
 
 p1 :: Pair C
 p1 = 1 :# 0
 
-tw1 :: L.Tree N1 (Pair C)
-tw1 = twiddles (size @(L.Tree N1 :. Pair))
+tw1 :: LTree N1 (Pair C)
+tw1 = twiddles (size @(LTree N1 :.: Pair))
 
-tw2 :: L.Tree N2 (Pair C)
-tw2 = twiddles (size @(L.Tree N2 :. Pair))
+tw2 :: LTree N2 (Pair C)
+tw2 = twiddles (size @(LTree N2 :.: Pair))
 
 -- Adapted from Dave's testing
 
-test :: (FFT f f', Foldable f, Foldable f') => f C -> IO ()
+test :: (FFT f, Foldable f, Foldable (FFO f)) => f C -> IO ()
 test fx =
   do ps "\nTesting input" xs
-     ps "Expected output" (dft xs)
+     ps "Expected output" (dftL xs)
      ps "Actual output  " (toList (fft fx))
  where
    ps label z = putStrLn (label ++ ": " ++ show z)
    xs = toList fx
 
+#if 0
 t0 :: LC N0
 t0 = L.fromList [1]
 
@@ -320,6 +341,7 @@ tests = do test p1
            test t0
            test t1
            mapM_ test t2s
+#endif
 
 -- infix 4 ===
 -- (===) :: Eq b => (a -> b) -> (a -> b) -> a -> Bool
@@ -329,22 +351,22 @@ infix 4 =~=
 (=~=) :: ApproxEq b => (a -> b) -> (a -> b) -> a -> Bool
 (f =~= g) x = f x =~ g x
 
-fftIsDft :: (FFT f f', Foldable f, Foldable f', RealFloat a, ApproxEq a) =>
-            f (Complex a) -> Bool
-fftIsDft = toList . fft =~= dft . toList
+fftIsDftL :: (FFT f, Foldable f, Foldable (FFO f), RealFloat a, ApproxEq a) =>
+             f (Complex a) -> Bool
+fftIsDftL = toList . fft =~= dftL . toList
 
-dftTIsDft :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
-            f (Complex a) -> Bool
-dftTIsDft = toList . dftT =~= dft . toList
+dftTIsDftL :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
+              f (Complex a) -> Bool
+dftTIsDftL = toList . dftT =~= dftL . toList
 
-dftQIsDft :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
-            f (Complex a) -> Bool
-dftQIsDft = toList . dftQ =~= dft . toList
+dftIsDftL :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
+             f (Complex a) -> Bool
+dftIsDftL = toList . dft =~= dftL . toList
 
--- TEMP:
-dftQDft :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
-        f (Complex a) -> ([Complex a], [Complex a])
-dftQDft xs = (toList . dftQ $ xs, dft . toList $ xs)
+-- -- TEMP:
+-- dftDft :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
+--           f (Complex a) -> ([Complex a], [Complex a])
+-- dftDft xs = (toList . dft $ xs, dftL . toList $ xs)
 
 {--------------------------------------------------------------------
     Properties to test
@@ -355,55 +377,55 @@ transposeTwiddleCommutes :: (AFS g, Traversable g, AFS f, (ApproxEq (f (g C))))
 transposeTwiddleCommutes =
  twiddle . transpose =~= transpose . twiddle
 
-prop_transposeTwiddle_L3P :: L.Tree N3 (Pair C) -> Bool
+prop_transposeTwiddle_L3P :: LTree N3 (Pair C) -> Bool
 prop_transposeTwiddle_L3P = transposeTwiddleCommutes
 
-prop_transposeTwiddle_R3P :: R.Tree N3 (Pair C) -> Bool
+prop_transposeTwiddle_R3P :: RTree N3 (Pair C) -> Bool
 prop_transposeTwiddle_R3P = transposeTwiddleCommutes
 
--- dftQ tests fail. Hm!
+-- dft tests fail. Hm!
 
--- prop_dftQ_R3 :: R.Tree N3 C -> Bool
--- prop_dftQ_R3 = dftQIsDft
+-- prop_dft_R3 :: RTree N3 C -> Bool
+-- prop_dft_R3 = dftIsDftL
 
--- prop_dftQ_L3 :: L.Tree N3 C -> Bool
--- prop_dftQ_L3 = dftQIsDft
+-- prop_dft_L3 :: LTree N3 C -> Bool
+-- prop_dft_L3 = dftIsDftL
 
 prop_dftT_p :: Pair C -> Bool
-prop_dftT_p = dftTIsDft
+prop_dftT_p = dftTIsDftL
 
-prop_dftT_L3 :: L.Tree N3 C -> Bool
-prop_dftT_L3 = dftTIsDft
+prop_dftT_L3 :: LTree N3 C -> Bool
+prop_dftT_L3 = dftTIsDftL
 
-prop_dftT_R3 :: R.Tree N3 C -> Bool
-prop_dftT_R3 = dftTIsDft
+prop_dftT_R3 :: RTree N3 C -> Bool
+prop_dftT_R3 = dftTIsDftL
 
 prop_fft_p :: Pair C -> Bool
-prop_fft_p = fftIsDft
+prop_fft_p = fftIsDftL
 
-prop_fft_L1 :: L.Tree N1 C -> Bool
-prop_fft_L1 = fftIsDft
+prop_fft_L1 :: LTree N1 C -> Bool
+prop_fft_L1 = fftIsDftL
 
-prop_fft_L2 :: L.Tree N2 C -> Bool
-prop_fft_L2 = fftIsDft
+prop_fft_L2 :: LTree N2 C -> Bool
+prop_fft_L2 = fftIsDftL
 
-prop_fft_L3 :: L.Tree N3 C -> Bool
-prop_fft_L3 = fftIsDft
+prop_fft_L3 :: LTree N3 C -> Bool
+prop_fft_L3 = fftIsDftL
 
-prop_fft_L4 :: L.Tree N4 C -> Bool
-prop_fft_L4 = fftIsDft
+prop_fft_L4 :: LTree N4 C -> Bool
+prop_fft_L4 = fftIsDftL
 
-prop_fft_R1 :: R.Tree N1 C -> Bool
-prop_fft_R1 = fftIsDft
+prop_fft_R1 :: RTree N1 C -> Bool
+prop_fft_R1 = fftIsDftL
 
-prop_fft_R2 :: R.Tree N2 C -> Bool
-prop_fft_R2 = fftIsDft
+prop_fft_R2 :: RTree N2 C -> Bool
+prop_fft_R2 = fftIsDftL
 
-prop_fft_R3 :: R.Tree N3 C -> Bool
-prop_fft_R3 = fftIsDft
+prop_fft_R3 :: RTree N3 C -> Bool
+prop_fft_R3 = fftIsDftL
 
-prop_fft_R4 :: R.Tree N4 C -> Bool
-prop_fft_R4 = fftIsDft
+prop_fft_R4 :: RTree N4 C -> Bool
+prop_fft_R4 = fftIsDftL
 
 -- TH oddity
 return []
