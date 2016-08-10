@@ -15,11 +15,10 @@
 {-# LANGUAGE TypeApplications       #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
+{-# LANGUAGE UndecidableInstances   #-} -- See below
 
 -- experiment
-{-# LANGUAGE PartialTypeSignatures #-}
-
-{-# LANGUAGE UndecidableInstances #-} -- See below
+-- {-# LANGUAGE PartialTypeSignatures #-}
 
 {-# OPTIONS_GHC -Wall #-}
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
@@ -296,8 +295,15 @@ p1 = 1 :# 0
 tw1 :: LTree N1 (Pair C)
 tw1 = twiddles
 
-tw2 :: LTree N2 (Pair C)
+tw2 :: RTree N2 (Pair C)
 tw2 = twiddles
+
+tw3 :: RTree N2 (RTree N2 C)
+tw3 = twiddles
+
+tw3' :: [[C]]
+tw3' = toList (toList <$> tw3)
+
 
 -- Adapted from Dave's testing
 
@@ -333,9 +339,9 @@ tests = do test p1
            mapM_ test t2s
 #endif
 
--- infix 4 ===
--- (===) :: Eq b => (a -> b) -> (a -> b) -> a -> Bool
--- (f === g) x = f x == g x
+infix 4 ===
+(===) :: Eq b => (a -> b) -> (a -> b) -> a -> Bool
+(f === g) x = f x == g x
 
 infix 4 =~=
 (=~=) :: ApproxEq b => (a -> b) -> (a -> b) -> a -> Bool
