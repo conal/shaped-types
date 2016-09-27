@@ -54,6 +54,7 @@ import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
 import ShapedTypes.Nat
 import ShapedTypes.Scan (LScan(..),lscanTraversable)
+import qualified ShapedTypes.ScanF as SF
 
 import ShapedTypes.Types.Vec
 
@@ -193,8 +194,13 @@ instance Sized (Vec n) => Sized (Vec (S n)) where
 -- Find robust ways to let GHC do more simplification.
 
 -- Generic lscan is terrible for Vec, so scan sequentially.
-instance Traversable (Vec n) => LScan (Vec n) where
+instance (Functor (Vec n), Traversable (Vec n)) => LScan (Vec n) where
   lscan = lscanTraversable
+  {-# INLINE lscan #-}
+
+-- Generic lscan is terrible for Vec, so scan sequentially.
+instance (Functor (Vec n), Traversable (Vec n)) => SF.LScan (Vec n) where
+  lscan = SF.lscanTraversable
   {-# INLINE lscan #-}
 
 -- Needs UndecidableInstances
