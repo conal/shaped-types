@@ -37,6 +37,8 @@ import GHC.Generics hiding (C)
 
 import Control.Newtype (Newtype(..))
 
+import Circat.Misc ((:*))
+
 -- | Add post- and pre-processing
 (<--) :: (b -> b') -> (a' -> a) -> ((a -> b) -> (a' -> b'))
 (h <-- f) g = h . g . f
@@ -88,3 +90,15 @@ underF _ f = fmap unpack . f . fmap pack
 overF :: (Newtype n, Newtype n', o' ~ O n', o ~ O n, Functor f, Functor g)
       => (o -> n) -> (f o -> g o') -> (f n -> g n')
 overF _ f = fmap pack . f . fmap unpack
+
+{--------------------------------------------------------------------
+    Misc
+--------------------------------------------------------------------}
+
+(<$*>), mapr :: Functor t => (a -> b) -> (a :* t a) -> (b :* t b)
+f <$*> (a,as) = (f a, f <$> as)
+mapr = (<$*>)
+
+(<*$>), mapl :: Functor t => (a -> b) -> (t a :* a) -> (t b :* b)
+f <*$> (as,a) = (f <$> as, f a)
+mapl = (<*$>)
