@@ -1,16 +1,20 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE EmptyCase           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE PatternSynonyms     #-}
-{-# LANGUAGE Rank2Types          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE ViewPatterns        #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE EmptyCase             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE DefaultSignatures     #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TypeApplications      #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
@@ -29,9 +33,11 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.ScanF
-  ( And1, pattern And1, unAnd1, LScanTy, LScan(..), LFScan
+  ( And1, pattern (:>), unAnd1, firstAnd1
+  , LScanTy, LScan(..)
   , lscanTraversable, lscanAla
-  , lsums, lproducts, lAlls, lAnys, lParities, iota
+  , lsums, lproducts, lAlls, lAnys, lParities
+  , multiples, powers, iota
   , genericLscan
   -- , lscanInc, lsums', lproducts', scanlT, scanlTEx
   ) where
@@ -39,7 +45,7 @@ module ShapedTypes.ScanF
 import Prelude hiding (zip,zipWith,unzip)
 
 import Data.Monoid ((<>),Sum(..),Product(..),All(..),Any(..))
-import Control.Arrow ((***),first)
+import Control.Arrow ((&&&),(***),first)
 import Data.Traversable (mapAccumL)
 import Data.Tuple (swap)
 import GHC.Generics
@@ -47,6 +53,7 @@ import GHC.Generics
 import Control.Newtype (Newtype(..))
 
 import Data.Key
+import Data.Pointed
 
 import Circat.Misc ((:*),Parity(..))
 import ShapedTypes.Misc (underF)
@@ -57,83 +64,109 @@ import ShapedTypes.Misc (underF)
 
 type And1 f = f :*: Par1
 
-pattern And1 :: f a -> a -> And1 f a
-pattern And1 fa a = fa :*: Par1 a
+-- pattern And1 :: f a -> a -> And1 f a
+-- pattern And1 fa a = fa :*: Par1 a
 
-andTot :: f a :* a -> And1 f a
-andTot = uncurry And1
--- andTot (fa,a) = fa :*: Par1 a
+pattern (:>) :: f a -> a -> And1 f a
+pattern fa :> a = fa :*: Par1 a
+
+-- andTot :: f a :* a -> And1 f a
+-- andTot = uncurry (:>)
+-- -- andTot (fa,a) = fa :*: Par1 a
 
 unAnd1 :: And1 f a -> f a :* a
 unAnd1 (fa :*: Par1 a) = (fa,a)
 
--- unAnd1 (And1 fa a) = (fa,a)
+-- unAnd1 (fa :> a) = (fa,a)
 --
 --     Pattern match(es) are non-exhaustive
 --     In an equation for ‘unAnd1’: Patterns not matched: _
 -- 
 -- GHC 8.1.20160405 bug?
 
+firstAnd1 :: (f a -> g a) -> And1 f a -> And1 g a
+firstAnd1 q (fa :*: Par1 a) = q fa :> a
+
+-- firstAnd1 q (fa :> a) = q fa :> a  -- non-exhaustive (GHC bug?)
+
 type LScanTy f = forall a. Monoid a => f a -> And1 f a
 
-class LScan f where
+-- Experiment with compiler problem: make Functor a superclass, and eliminate LFScan.
+
+class Functor f => LScan f where
   lscan :: LScanTy f
+  default lscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
+--   lscan = genericLscan
+  lscan = firstAnd1 to1 . lscan . from1
+
   -- Temporary hack to avoid newtype-like representation. Still needed?
   lscanDummy :: f a
   lscanDummy = undefined
 
--- TODO: Try removing lscanDummy and the comment and recompiling with reification
+-- | Generic left scan
+genericLscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
+genericLscan = firstAnd1 to1 . lscan . from1
 
 -- | Traversable version (sequential)
 scanlT :: Traversable t => (b -> a -> b) -> b -> t a -> And1 t b
-scanlT op e = andTot . swap . mapAccumL (\ a b -> (a `op` b,a)) e
+scanlT op e = uncurry (:>) . swap . mapAccumL (\ a b -> (a `op` b,a)) e
 {-# INLINABLE scanlT #-}
 
 lscanTraversable :: Traversable t => LScanTy t
 lscanTraversable = scanlT mappend mempty
 {-# INLINABLE lscanTraversable #-}
 
-type LFScan f = (Functor f, LScan f)
-
 adjustl :: (Monoid a, Functor t) => a -> t a -> t a
--- adjustl p = fmap (p <>)
 adjustl = fmap . mappend
+-- adjustl p = fmap (p <>)
 
 {--------------------------------------------------------------------
     Monoid specializations
 --------------------------------------------------------------------}
 
 -- Left-scan via a 'Newtype'
-lscanAla :: forall n o f. (Newtype n, o ~ O n, LFScan f, Monoid n)
+lscanAla :: forall n o f. (Newtype n, o ~ O n, LScan f, Monoid n)
          => (o -> n) -> f o -> And1 f o
 lscanAla = flip underF lscan
+{-# INLINE lscanAla #-}
 
 -- lscanAla k = underF k lscan
 -- lscanAla _k = fmap unpack . lscan . fmap (pack :: o -> n)
 
--- lsums :: (LFScan f, Num b) => f b -> And1 f b
-lsums :: (LFScan f, Num b) => f b -> (f :*: Par1) b
+lsums :: (LScan f, Num b) => f b -> And1 f b
 lsums = lscanAla Sum
 
-lproducts :: (LFScan f, Num b) => f b -> And1 f b
+lproducts :: (LScan f, Num b) => f b -> And1 f b
 lproducts = lscanAla Product
 
-lAlls :: LFScan f => f Bool -> And1 f Bool
+lAlls :: LScan f => f Bool -> And1 f Bool
 lAlls = lscanAla All
 
-lAnys :: LFScan f => f Bool -> And1 f Bool
+lAnys :: LScan f => f Bool -> And1 f Bool
 lAnys = lscanAla Any
 
-lParities :: LFScan f => f Bool -> And1 f Bool
+lParities :: LScan f => f Bool -> And1 f Bool
 lParities = lscanAla Parity
 
--- | Numbers from 0 to n (size of f). Named for APL iota operation (but 0 based).
-iota' :: (LScan f, Traversable f, Applicative f, Num b) => And1 f b
-iota' = lsums (pure 1)
+multiples :: (LScan f, Pointed f, Num a) => a -> And1 f a
+multiples = lsums . point
 
--- | Numbers from 0 to n-1. Named for APL iota operation (but 0 based).
-iota :: (LScan f, Traversable f, Applicative f, Num b) => f b
-iota = fst (unAnd1 iota')
+powers :: (LScan f, Pointed f, Num a) => a -> And1 f a
+powers = lproducts . point
+
+-- | Numbers from 0 to n (size of f). Named for APL iota operation (but 0 based).
+iota :: (LScan f, Pointed f, Num b) => And1 f b
+iota = multiples 1
+
+#if 0
+-- Use type application instead of constructor
+lscanAla' :: forall n o f. (Newtype n, o ~ O n, LScan f, Monoid n)
+          => f o -> And1 f o
+lscanAla' = fmap unpack . lscan . fmap (pack @n)
+
+lsums' :: forall f b. (LScan f, Num b) => f b -> And1 f b
+lsums' = lscanAla' @(Sum b)
+#endif
 
 {--------------------------------------------------------------------
     Generic support
@@ -141,19 +174,14 @@ iota = fst (unAnd1 iota')
 
 instance LScan V1 where lscan = \ case
 
-lscanEmpty :: LScanTy f
-lscanEmpty fa = And1 fa mempty
+-- lscanEmpty :: LScanTy f
+-- lscanEmpty fa = fa :> mempty
 
-instance LScan U1       where lscan = lscanEmpty
-instance LScan (K1 i c) where lscan = lscanEmpty
+instance LScan U1       where lscan = (:> mempty)
+instance LScan (K1 i c) where lscan = (:> mempty)
 
 instance LScan Par1 where
-  lscan (Par1 a) = And1 (Par1 mempty) a
-
-firstAnd1 :: (f a -> g a) -> And1 f a -> And1 g a
-firstAnd1 q (fa :*: Par1 a) = And1 (q fa) a
-
--- firstAnd1 (And1 fa a) q = And1 (q fa) a  -- non-exhaustive (GHC bug?)
+  lscan (Par1 a) = Par1 mempty :> a
 
 either1 :: (f a -> b) -> (g a -> b) -> (f :+: g) a -> b
 either1 fab _ (L1 fa) = fab fa
@@ -170,29 +198,29 @@ instance (LScan f, LScan g) => LScan (f :+: g) where
 --   lscan (L1 fa) = firstAnd1 L1 (lscan fa)
 --   lscan (R1 ga) = firstAnd1 R1 (lscan ga)
 
-instance (LScan f, LFScan g) => LScan (f :*: g) where
-  lscan (fa :*: ga) = And1 (fa' :*: ga') gx
+instance (LScan f, LScan g) => LScan (f :*: g) where
+  lscan (fa :*: ga) = (fa' :*: ga') :> gx
    where
-     And1 fa' fx = lscan fa
-     And1 ga' gx = adjustl fx (lscan ga)
+     fa' :> fx = lscan fa
+     ga' :> gx = adjustl fx (lscan ga)
   {-# INLINABLE lscan #-}
 
-instance (LScan g, LFScan f, Zip g) => LScan (g :.: f) where
-  lscan (Comp1 gfa) = And1 (Comp1 (zipWith adjustl tots' gfa')) tot
+instance (LScan g, LScan f, Zip g) => LScan (g :.: f) where
+  lscan (Comp1 gfa) = Comp1 (zipWith adjustl tots' gfa') :> tot
    where
-     (gfa', tots)     = unzipAnd1 (lscan <$> gfa)
-     And1 tots' tot = lscan tots
+     (gfa', tots) = unzipAnd1 (lscan <$> gfa)
+     tots' :> tot = lscan tots
   {-# INLINABLE lscan #-}
 
 unzipAnd1 :: forall g f a. Functor g => g (And1 f a) -> g (f a) :* g a
 unzipAnd1 = unzip . fmap unAnd1
+
+-- unzipAnd1 = unzip . fmap (\ (as :> a) -> (as,a))
+-- unzipAnd1 = fmap (\ (as :> _) -> as) &&& fmap (\ (_ :> a) -> a)
+
 
 unzip :: Functor f => f (a, b) -> (f a, f b)
 unzip ps = (fst <$> ps, snd <$> ps)
 
 instance LScan f => LScan (M1 i c f) where
   lscan = firstAnd1 M1 . lscan . unM1
-
--- | Generic left scan
-genericLscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
-genericLscan = firstAnd1 to1 . lscan . from1
