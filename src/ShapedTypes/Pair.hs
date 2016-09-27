@@ -38,6 +38,7 @@ import Control.Applicative (liftA2)
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
+import Data.Pointed
 
 import ShapedTypes.ApproxEq
 import ShapedTypes.Sized
@@ -93,7 +94,7 @@ instance CoArbitrary a => CoArbitrary (Pair a) where
   coarbitrary (x :# y) = coarbitrary x . coarbitrary y
 
 {--------------------------------------------------------------------
-    keys package
+    keys and pointed package
 --------------------------------------------------------------------}
 
 type instance Key Pair = Bool
@@ -113,6 +114,9 @@ instance Indexable Pair where
 instance Adjustable Pair where
   adjust f k (a :# b) = if k then a :# f b else f a :# b
 
+instance Pointed Pair where
+  point a = a :# a
+
 {--------------------------------------------------------------------
     shaped-types instances
 --------------------------------------------------------------------}
@@ -128,7 +132,7 @@ instance LScan Pair where
   {-# INLINE lscan #-}
 
 instance F.LScan Pair where
-  lscan (a :# b) = F.And1 (mempty :# a) (a <> b)
+  lscan (a :# b) = (mempty :# a) F.:> (a <> b)
   {-# INLINE lscan #-}
 
 {--------------------------------------------------------------------
