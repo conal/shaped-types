@@ -8,6 +8,7 @@
 {-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ParallelListComp       #-}
+{-# LANGUAGE PartialTypeSignatures  #-}
 {-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE Rank2Types             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
@@ -24,13 +25,13 @@
 {-# OPTIONS_GHC -Wall #-}
 -- {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- TEMP
 
-#define TESTING
+-- #define TESTING
 
 #ifdef TESTING
 {-# OPTIONS_GHC -fno-warn-unused-binds   #-} -- TEMP
 #endif
 
-#define GenericPowFFT
+-- #define GenericPowFFT
 
 ----------------------------------------------------------------------
 -- |
@@ -44,12 +45,14 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.FFT
-  ( FFT(..), DFTTy, genericFft, dftT, GFFT
+  ( dft, FFT(..), DFTTy, genericFft, GFFT
   -- -- Temporary while debugging
-  -- , twiddle, twiddles, omega, cis
+  , twiddle, twiddles, omega, cis
+  , (<.>)
+  , o8sq
   ) where
 
-import Prelude hiding (zipWith)
+import Control.Applicative (liftA2)
 import GHC.Generics hiding (C,S)
 
 #ifdef TESTING
@@ -59,14 +62,14 @@ import Test.QuickCheck.All (quickCheckAll)
 import ShapedTypes.ApproxEq
 #endif
 
-import Data.Key
+-- import Data.Key
 
 import Circat.Misc (transpose,Unop)
 import Circat.Complex
 
 import ShapedTypes.Misc
 import ShapedTypes.Sized
-import ShapedTypes.Scan (LScan,LFScan,lproducts,iota) -- , lsums
+import ShapedTypes.Scan (LScan,lproducts)
 import ShapedTypes.Nat
 import ShapedTypes.Pair
 import ShapedTypes.Vec
@@ -74,6 +77,33 @@ import ShapedTypes.LPow (LPow)
 import ShapedTypes.RPow (RPow)
 import qualified ShapedTypes.LPow as L
 import qualified ShapedTypes.RPow as R
+import ShapedTypes.Linear
+
+{--------------------------------------------------------------------
+    DFT
+--------------------------------------------------------------------}
+
+type AS  h = (Applicative h, LScan h)
+type ASZ h = (AS h, Sized h)
+
+dft :: forall f a. (ASZ f, Foldable f, RealFloat a) => Unop (f (Complex a))
+dft xs = omegas (size @f) $@ xs
+{-# INLINE dft #-}
+
+omegas :: (AS f, AS g, RealFloat a) => Int -> g (f (Complex a))
+omegas = fmap powers . powers . omega
+-- omegas n = powers <$> powers (omega n)
+-- omegas n = powers <$> powers (exp (- i * 2 * pi / fromIntegral n))
+{-# INLINE omegas #-}
+
+-- i :: Num a => Complex a
+-- i = 0 :+ 1
+
+omega :: RealFloat a => Int -> Complex a
+omega n = cis (- 2 * pi / fromIntegral n)
+-- omega n = exp (0 :+ (- 2 * pi / fromIntegral n))
+-- omega n = exp (- 2 * (0:+1) * pi / fromIntegral n)
+{-# INLINE omega #-}
 
 {--------------------------------------------------------------------
     FFT
@@ -94,27 +124,44 @@ class FFT f where
 -- TODO: Eliminate FFO, in favor of fft :: Unop (f (Complex a)).
 -- Use dft as spec.
 
-type AFS h = (Applicative h, Zip h, Sized h, LScan h)
-
-twiddle :: forall g f a. (AFS g, AFS f, RealFloat a) => Unop (g (f (Complex a)))
-twiddle = (zipWith.zipWith) (*) twiddles
+twiddle :: forall g f a. (ASZ g, ASZ f, RealFloat a) => Unop (g (f (Complex a)))
+twiddle = (liftA2.liftA2) (*) twiddles
+-- twiddle = (liftA2.liftA2) (*) (omegas (size @(g :.: f)))
 {-# INLINE twiddle #-}
 
-twiddles :: forall g f a. (AFS g, AFS f, RealFloat a) => g (f (Complex a))
-twiddles = powers <$> powers (omega (size @(g :.: f)))
+twiddles :: forall g f a. (ASZ g, ASZ f, RealFloat a) => g (f (Complex a))
+twiddles = omegas (size @(g :.: f))
+{-# INLINE twiddles #-}
 
-omega :: (Integral n, RealFloat a) => n -> Complex a
-omega n = cis (- 2 * pi / fromIntegral n)
--- omega n = exp (0 :+ (- 2 * pi / fromIntegral n))
--- omega n = exp (- 2 * (0:+1) * pi / fromIntegral n)
-{-# INLINE omega #-}
+-- Handy for testing
+type C = Complex Double
+
+o8sq :: C
+o8sq = omega (8 :: Int) ^ (2 :: Int)
 
 -- | @'exp' (i * a)
 cis :: RealFloat a => a -> Complex a
+#if 1
 cis a = cos a :+ sin a
 
+-- {-# RULES "sin pi :: Double" sin (1.2246467991473532e-16) = 0 #-}
+
+#else
+cis a = cos' a :+ sin' a
+
+sin', cos' :: RealFloat a => a -> a
+sin' a | a ==  pi   = 0
+       | a == -pi   = 0
+       | otherwise = sin a
+cos' a | a ==  pi/2 = 0
+       | a == -pi/2 = 0
+       | otherwise = cos a
+{-# INLINE sin' #-}
+{-# INLINE cos' #-}
+#endif
+
 -- Powers of x, starting x^0. Uses 'LScan' for log parallel time
-powers :: (LFScan f, Applicative f, Num a) => a -> f a
+powers :: (LScan f, Applicative f, Num a) => a -> f a
 powers = fst . lproducts . pure
 {-# INLINE powers #-}
 
@@ -129,12 +176,32 @@ instance FFT Par1 where
   type FFO Par1 = Par1
   fft = id
 
-instance ( Applicative f , Zip f,  Traversable f , Traversable g
-         , Applicative (FFO f), Zip (FFO g), Applicative (FFO g), Traversable (FFO g)
+#if 0
+inTranspose :: (Traversable f', Traversable g, Applicative g', Applicative f)
+            => (f (g a) -> f' (g' a)) -> g (f a) -> g' (f' a)
+inTranspose = transpose <-- transpose
+
+ffts' :: ( FFT g, Traversable f, Traversable g
+         , Applicative (FFO g), Applicative f, RealFloat a) =>
+     g (f (Complex a)) -> FFO g (f (Complex a))
+ffts' = transpose . fmap fft . transpose
+#endif
+
+#if 0
+
+transpose :: g (f C)     -> f (g C)
+fmap fft  :: f (g C)     -> f (FFO g C)
+transpose :: f (FFO g C) -> FFO g (f C)
+
+#endif
+
+instance ( Applicative f,  Traversable f , Traversable g
+         , Applicative (FFO f), Applicative (FFO g), Traversable (FFO g)
          , FFT f, FFT g, LScan f, LScan (FFO g), Sized f, Sized (FFO g) )
       => FFT (g :.: f) where
   type FFO (g :.: f) = FFO f :.: FFO g
   fft = inComp (traverse fft . twiddle . traverse fft . transpose)
+  -- fft = inComp (ffts' . transpose . twiddle . ffts')
   {-# INLINE fft #-}
 
 #if 0
@@ -152,15 +219,27 @@ instance ( Applicative f , Zip f,  Traversable f , Traversable g
   Comp1     :: f' (g' a)  -> (f' :. g') a
 #endif
 
--- Generalization of 'dft' to traversables.
-dftT :: forall f a. (AFS f, Traversable f, RealFloat a)
-     => Unop (f (Complex a))
-dftT xs = out <$> indices
- where
-   out k   = sum (zipWith (\ n x -> x * ok^n) indices xs) where ok = om ^ k
-   indices = iota :: f Int
-   om      = omega (size @f)
-{-# INLINE dftT #-}
+#if 0
+
+--   fft = inComp (ffts' . transpose . twiddle . ffts')
+
+ffts'     :: g (f C)     -> FFO g (f C)
+twiddle   :: FFO g (f C) -> FFO g (f C)
+transpose :: FFO g (f C) -> f (FFO g C)
+ffts'     :: f (FFO g C) -> FFO f (FFO g C)
+
+#endif
+
+-- -- Generalization of 'dft' to traversables. Note that liftA2 should
+-- -- work zippily (unlike with lists).
+-- dftT :: forall f a. (ASZ f, Traversable f, RealFloat a)
+--      => Unop (f (Complex a))
+-- dftT xs = out <$> indices
+--  where
+--    out k   = sum (liftA2 (\ n x -> x * ok^n) indices xs) where ok = om ^ k
+--    indices = fst iota :: f Int
+--    om      = omega (size @f)
+-- {-# INLINE dftT #-}
 
 -- | Generic FFT
 genericFft :: ( Generic1 f, Generic1 (FFO f)
@@ -189,13 +268,14 @@ type GFFT f = (Generic1 f, Generic1 (FFO f), FFT (Rep1 f), FFO (Rep1 f) ~ Rep1 (
 -- Radix 2 butterfly
 instance FFT Pair where
   type FFO Pair = Pair
-  fft (a :# b) = (a + b) :# (a - b)
+  -- fft (a :# b) = (a + b) :# (a - b)
+  fft = dft
   {-# INLINE fft #-}
 
-instance ( Applicative (Vec n), Zip (Vec n), Traversable (Vec n), Sized (Vec n) )
+instance ( Applicative (Vec n), Traversable (Vec n), Sized (Vec n) )
       => FFT (Vec n) where
   type FFO (Vec n) = Vec n
-  fft = dftT
+  fft = dft
   {-# INLINE fft #-}
 
 #ifdef GenericPowFFT
@@ -205,7 +285,7 @@ GenericFFT(LPow h n, RPow (FFO h) n)
 
 #else
 
-type ATS f = (Applicative f, Zip f, Traversable f, Sized f)
+type ATS f = (Applicative f, Traversable f, Sized f)
 
 instance FFT (RPow h Z) where
   type FFO (RPow h Z) = (LPow h Z)
@@ -233,17 +313,18 @@ instance ( ATS h, ATS (FFO h), ATS (RPow (FFO h) n), ATS (LPow h n)
   fft = R.B . unComp1 . fft . Comp1 . L.unB
   {-# INLINE fft #-}
 
+-- TODO: use inNew
+
+-- Doesn't type-check
+-- zoop = fft @(RPow (RPow Pair N2) N4) @Double
+
 -- TODO: Revisit these constraints, which don't quite have the duality I expected.
 #endif
 
 #ifdef TESTING
 
-dft :: forall f a. (AFS f, Foldable f, RealFloat a) => Unop (f (Complex a))
-dft as = (<.> as) <$> twiddles
-{-# INLINE dft #-}
-
 #if 0
-twiddles :: (AFS g, AFS f, RealFloat a) => g (f (Complex a))
+twiddles :: (ASZ g, ASZ f, RealFloat a) => g (f (Complex a))
 
 as :: f C
 (<.> as) :: f C -> C
@@ -251,10 +332,10 @@ twiddles :: f (f C)
 (<.> as) <$> twiddles :: f C
 #endif
 
--- Binary dot product
-infixl 7 <.>
-(<.>) :: (Foldable f, Zip f, Num a) => f a -> f a -> a
-u <.> v = sum (zipWith (*) u v)
+-- -- Binary dot product
+-- infixl 7 <.>
+-- (<.>) :: (Foldable f, Applicative f, Num a) => f a -> f a -> a
+-- u <.> v = sum (liftA2 (*) u v)
 
 {--------------------------------------------------------------------
     Simple, quadratic DFT (for specification & testing)
@@ -275,9 +356,6 @@ dftL xs = [ sum [ x * ok^n | x <- xs | n <- [0 :: Int ..] ]
 -- B (B (L ((1 :# 2) :# (4 :# 8))))
 -- > powers 2 :: LTree N3 Int
 -- B (B (B (L (((1 :# 2) :# (4 :# 8)) :# ((16 :# 32) :# (64 :# 128))))))
-
--- PrettyDouble doesn't yet have an Arbitrary instance, so use Double for now
-type C = Complex Double
 
 fftl :: (FFT f, Foldable (FFO f), RealFloat a) => f (Complex a) -> [Complex a]
 fftl = toList . fft
@@ -350,16 +428,16 @@ fftIsDftL :: (FFT f, Foldable f, Foldable (FFO f), RealFloat a, ApproxEq a) =>
              f (Complex a) -> Bool
 fftIsDftL = toList . fft =~= dftL . toList
 
-dftTIsDftL :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
+dftTIsDftL :: (ASZ f, Traversable f, RealFloat a, ApproxEq a) =>
               f (Complex a) -> Bool
 dftTIsDftL = toList . dftT =~= dftL . toList
 
-dftIsDftL :: (AFS f, Foldable f, RealFloat a, ApproxEq a) =>
+dftIsDftL :: (ASZ f, Foldable f, RealFloat a, ApproxEq a) =>
              f (Complex a) -> Bool
 dftIsDftL = toList . dft =~= dftL . toList
 
 -- -- TEMP:
--- dftDft :: (AFS f, Traversable f, RealFloat a, ApproxEq a) =>
+-- dftDft :: (ASZ f, Traversable f, RealFloat a, ApproxEq a) =>
 --           f (Complex a) -> ([Complex a], [Complex a])
 -- dftDft xs = (toList . dft $ xs, dftL . toList $ xs)
 
@@ -367,7 +445,7 @@ dftIsDftL = toList . dft =~= dftL . toList
     Properties to test
 --------------------------------------------------------------------}
 
-transposeTwiddleCommutes :: (AFS g, Traversable g, AFS f, (ApproxEq (f (g C))))
+transposeTwiddleCommutes :: (ASZ g, Traversable g, ASZ f, (ApproxEq (f (g C))))
                          => g (f C) -> Bool
 transposeTwiddleCommutes =
  twiddle . transpose =~= transpose . twiddle
