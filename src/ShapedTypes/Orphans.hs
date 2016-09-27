@@ -26,7 +26,10 @@ import Control.Applicative (liftA2)
 import GHC.Generics
 import Data.Void
 
+import Control.Newtype
 import Data.Key
+import Data.Pointed
+import Data.Copointed
 
 import ShapedTypes.Misc (inComp,inComp2)
 
@@ -142,3 +145,35 @@ instance Lookup U1 where lookup = lookupDefault
 instance Indexable U1 where index U1 = \ case
 
 instance Adjustable U1 where adjust = const (const id)
+
+
+{--------------------------------------------------------------------
+    GHC.Generics and pointed
+--------------------------------------------------------------------}
+
+instance Pointed Par1 where
+  point = Par1
+
+instance (Pointed f, Pointed g) => Pointed (f :*: g) where
+  point a = point a :*: point a
+
+instance (Pointed f, Pointed g) => Pointed (g :.: f) where
+  point = Comp1 . point . point
+
+instance Copointed Par1 where
+  copoint = unPar1
+
+instance (Copointed f, Copointed g) => Copointed (g :.: f) where
+  copoint = copoint . copoint . unComp1
+
+-- TODO: many Pointed and Copointed instances for GHC.Generics types.
+-- Offer as a pointed patch, as I did with keys.
+
+{--------------------------------------------------------------------
+    GHC.Generics and Newtype
+--------------------------------------------------------------------}
+
+instance Newtype ((f :*: g) a) where
+  type O ((f :*: g) a) = (f a, g a)
+  pack (fa,ga) = fa :*: ga
+  unpack (fa :*: ga) = (fa,ga)
