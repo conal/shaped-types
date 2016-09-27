@@ -41,6 +41,8 @@ import qualified ShapedTypes.LPow as L
 import ShapedTypes.Scan
 import ShapedTypes.FFT
 
+import qualified ShapedTypes.Fams as F
+
 type Unop  a = a -> a
 type Binop a = a -> Unop a
 
