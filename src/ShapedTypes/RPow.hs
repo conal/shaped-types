@@ -10,6 +10,7 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
 {-# LANGUAGE TypeApplications    #-}
@@ -70,6 +71,7 @@ import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
+import Data.Pointed
 
 import Circat.Misc ((<~),showsUnary)
 
@@ -78,6 +80,7 @@ import ShapedTypes.Sized
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
 import ShapedTypes.Scan
+import qualified ShapedTypes.ScanF as SF
 
 import ShapedTypes.Types.RPow
 
@@ -190,7 +193,7 @@ instance CoArbitrary (h (RPow h n a)) => CoArbitrary (RPow h (S n) a) where
   coarbitrary (B a) = coarbitrary a
 
 {--------------------------------------------------------------------
-    keys package
+    keys and pointed packages
 --------------------------------------------------------------------}
 
 type instance Key (RPow h m) = Vec m (Key h)
@@ -275,6 +278,14 @@ instance (Traversable (RPow n h), Keyed (RPow n h)) => TraversableWithKey (RPow 
 
 -}
 
+instance Pointed (RPow h Z) where
+  point = L
+  {-# INLINE point #-}
+
+instance (Pointed h, Pointed (RPow h n)) => Pointed (RPow h (S n)) where
+  point = B . point . point
+  {-# INLINE point #-}
+
 {--------------------------------------------------------------------
     Other representations
 --------------------------------------------------------------------}
@@ -317,8 +328,16 @@ instance (Generic1 (RPow h n), LScan (Rep1 (RPow h n))) => LScan (RPow h n) wher
 instance LScan (RPow h Z) where
   lscan (L a) = (L mempty, a)
   {-# INLINE lscan #-}
-instance (LScan h, Zip h, LFScan (RPow h n)) => LScan (RPow h (S n)) where
-  lscan (B ts) = first B (lscanComp ts)
+instance (LScan h, Zip h, LScan (RPow h n)) => LScan (RPow h (S n)) where
+  lscan (B ts) = first (B . unComp1) (lscan (Comp1 ts))
+  {-# INLINE lscan #-}
+
+-- TODO: Replace Scan by ScanF
+instance SF.LScan (RPow h Z) where
+  lscan (L a) = L mempty SF.:> a
+  {-# INLINE lscan #-}
+instance (SF.LScan h, Zip h, SF.LScan (RPow h n)) => SF.LScan (RPow h (S n)) where
+  lscan (B ts) = SF.firstAnd1 (B . unComp1) (SF.lscan (Comp1 ts))
   {-# INLINE lscan #-}
 
 #endif
