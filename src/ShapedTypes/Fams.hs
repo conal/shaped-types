@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP  #-}
 {-# LANGUAGE TypeFamilies  #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -25,6 +26,7 @@ module ShapedTypes.Fams where
 import GHC.Generics hiding (S)
 
 import ShapedTypes.Nat
+import qualified ShapedTypes.Pair as P
 
 -- | Right-associated vector
 type family RVec n where
@@ -55,3 +57,25 @@ type RPair = RVec N2
 
 -- | Uniform pair, alternative formulation (left)
 type LPair = LVec N2
+
+-- data Bush a = NilB | ConsB a (Bush (Bush a))
+
+-- Bushy binary leaf trees
+type family Bush n where
+  Bush Z     = P.Pair
+  Bush (S n) = Bush n :.: Bush n
+
+-- We can generalize from Pair and from squaring.
+
+-- I use P.Pair instead of UPair for FFT-friendliness, although RPair and LPair
+-- would also probably do fine.
+
+-- Bushy binary trees with data at branchings
+type family Bush' n where
+  Bush' Z     = U1
+  Bush' (S n) = Par1 :*: (Bush' n :.: Bush' n)
+
+-- I adapted Bush' from *Nested Datatypes* by Richard Bird and Lambert Meertens
+-- (1998), <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.184.8120>,
+-- adding depth-indexing. It works fine for maps, folds, traversals, and scans.
+-- The use of (:*:) thwarts FFT.
