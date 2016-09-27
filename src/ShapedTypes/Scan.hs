@@ -8,7 +8,10 @@
 {-# LANGUAGE Rank2Types          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DefaultSignatures   #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
@@ -27,11 +30,10 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.Scan
-  ( LScanTy, LScan(..), LFScan
+  ( LScanTy, LScan(..)
   , lscanT, lscanTraversable
-  , lsums, lproducts, lAlls, lAnys, lParities, iota
-  , lscanProd, lscanProd', lscanComp, lscanComp'
-  , genericLscan
+  , lsums, lproducts, lAlls, lAnys, lParities
+  , multiples, powers, iota
   ) where
 
 import Prelude hiding (zip,unzip,zipWith)
@@ -42,14 +44,20 @@ import Data.Traversable (mapAccumL)
 import Data.Tuple (swap)
 import GHC.Generics
 
+import Control.Newtype (Newtype(..))
+
 import Data.Key
+import Data.Pointed
 
 import Circat.Misc ((:*),Parity(..)) -- , Unop
+-- import ShapedTypes.Misc (mapl)
 
 type LScanTy f = forall a. Monoid a => f a -> f a :* a
 
-class LScan f where
+class Functor f => LScan f where
   lscan :: LScanTy f
+  default lscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
+  lscan = first to1 . lscan . from1
   -- Temporary hack to avoid newtype-like representation. Still needed?
   lscanDummy :: f a
   lscanDummy = undefined
@@ -58,82 +66,54 @@ class LScan f where
 
 -- | Traversable version (sequential)
 lscanT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
-lscanT op e = swap . mapAccumL (\ a b -> (a `op` b,a)) e
+lscanT op e = swap . mapAccumL (\ b a -> (b `op` a,b)) e
 {-# INLINABLE lscanT #-}
 
 lscanTraversable :: Traversable t => LScanTy t
 lscanTraversable = lscanT mappend mempty
 {-# INLINABLE lscanTraversable #-}
 
-type LFScan f = (Functor f, LScan f)
+{--------------------------------------------------------------------
+    Monoid specializations
+--------------------------------------------------------------------}
 
--- | Scan a product of functors. See also 'lscanProd'.
-lscanProd' :: (Functor g, Monoid a)
-           => LScanTy f -> LScanTy g
-           -> f a :* g a -> (f a :* g a) :* a
-lscanProd' lscanF lscanG (fa,ga) = ((fa', tweak <$> ga'), tweak gx)
- where
-   (fa',fx) = lscanF fa
-   (ga',gx) = lscanG ga
-   tweak   = (fx <>)
+-- Left-scan via a 'Newtype'
+lscanAla :: forall n o f. (Newtype n, o ~ O n, LScan f, Monoid n)
+         => f o -> f o :* o
+lscanAla = (fmap unpack *** unpack) . lscan . fmap (pack @n)
 
--- | Scan a product of functors. See also 'lscanProd''.
-lscanProd :: (Functor g, Monoid a, LScan f, LScan g)
-          => (f a :* g a) -> (f a :* g a) :* a
-lscanProd = lscanProd' lscan lscan
+-- lscanAla k = underF k lscan
+-- lscanAla _k = fmap unpack . lscan . fmap (pack :: o -> n)
 
--- | Variant of 'lscanComp' useful with size-indexed functors
-lscanComp' :: (Zip g, Functor f, Monoid a) =>
-              LScanTy g -> LScanTy f
-           -> g (f a) -> g (f a) :* a
-lscanComp' lscanG lscanF gfa  = (zipWith adjustl tots' gfa', tot)
- where
-   (gfa' ,tots)  = unzip (lscanF <$> gfa)
-   (tots',tot)   = lscanG tots
-
-unzip :: forall f a b. Functor f => f (a :* b) -> f a :* f b
-unzip ps = (fst <$> ps, snd <$> ps)
-
--- unzip ps = (fmapF fst ps, fmapF snd ps)
---  where
---    fmapF :: forall u v. (u -> v) -> f u -> f v
---    fmapF = fmap
-
-adjustl :: (Monoid a, Functor t) => a -> t a -> t a
-adjustl p = fmap (p <>)
-
--- | Scan a composition of functors
-lscanComp :: (LScan g, LFScan f, Zip g, Monoid a) =>
-             g (f a) -> g (f a) :* a
-lscanComp = lscanComp' lscan lscan
-
-lsums :: (LFScan f, Num b) => f b -> (f b, b)
-lsums = (fmap getSum *** getSum) . lscan . fmap Sum
+lsums :: forall f a. (LScan f, Num a) => f a -> (f a, a)
+lsums = lscanAla @(Sum a)
 {-# INLINABLE lsums #-}
 
-lproducts :: (LFScan f, Num b) => f b -> f b :* b
-lproducts = (fmap getProduct *** getProduct) . lscan . fmap Product
+lproducts :: forall f a. (LScan f, Num a) => f a -> f a :* a
+lproducts = lscanAla @(Product a)
 {-# INLINABLE lproducts #-}
 
-lAlls :: LFScan f => f Bool -> (f Bool, Bool)
-lAlls = (fmap getAll *** getAll) . lscan . fmap All
+lAlls :: LScan f => f Bool -> (f Bool, Bool)
+lAlls = lscanAla @All
 {-# INLINABLE lAlls #-}
 
-lAnys :: LFScan f => f Bool -> (f Bool, Bool)
-lAnys = (fmap getAny *** getAny) . lscan . fmap Any
+lAnys :: LScan f => f Bool -> (f Bool, Bool)
+lAnys = lscanAla @Any
 {-# INLINABLE lAnys #-}
 
-lParities :: LFScan f => f Bool -> (f Bool, Bool)
-lParities = (fmap getParity *** getParity) . lscan . fmap Parity
+lParities :: LScan f => f Bool -> (f Bool, Bool)
+lParities = lscanAla @Parity
 {-# INLINABLE lParities #-}
 
--- TODO: Refactor lsums, lproducts, etc, using Newtype.
+multiples :: (LScan f, Pointed f, Num a) => a -> f a :* a
+multiples = lsums . point
 
--- Variants 
+powers :: (LScan f, Pointed f, Num a) => a -> f a :* a
+powers = lproducts . point
 
--- | Numbers from 0 to n-1. Named for APL iota operation (but 0 based).
-iota :: (LScan f, Traversable f, Applicative f, Num b) => f b
-iota = fst (lsums (pure 1))
+-- | Numbers from 0 to n (size of f). Named for APL iota operation (but 0 based).
+iota :: (LScan f, Pointed f, Num a) => f a :* a
+iota = multiples 1
 
 {--------------------------------------------------------------------
     Generic support
@@ -155,15 +135,30 @@ instance (LScan f, LScan g) => LScan (f :+: g) where
   lscan (L1 fa) = first L1 (lscan fa)
   lscan (R1 ga) = first R1 (lscan ga)
 
-instance (LScan f, LFScan g) => LScan (f :*: g) where
-  lscan (fa :*: ga) = first (uncurry (:*:)) (lscanProd (fa,ga))
+instance (LScan f, LScan g) => LScan (f :*: g) where
+  lscan (fa :*: ga) = (fa' :*: ((fx <>) <$> ga'), fx <> gx)
+   where
+     (fa', fx) = lscan fa
+     (ga', gx) = lscan ga
 
-instance (LScan g, LFScan f, Zip g) => LScan (g :.: f) where
-  lscan (Comp1 gfa) = first Comp1 (lscanComp gfa)
+-- Alternatively,
+
+--   lscan (fa :*: ga) = (fa' :*: ga', gx)
+--    where
+--      (fa', fx) =               lscan fa
+--      (ga', gx) = mapl (fx <>) (lscan ga)
+
+instance (LScan g, LScan f, Zip g) =>  LScan (g :.: f) where
+  lscan (Comp1 gfa) = (Comp1 (zipWith adjustl tots' gfa'), tot)
+   where
+     (gfa', tots)  = unzip (lscan <$> gfa)
+     (tots',tot)   = lscan tots
+     adjustl t     = fmap (t <>)
+
+-- TODO: maybe zipWith (fmap . mappend) tots' gfa'
 
 instance LScan f => LScan (M1 i c f) where
   lscan (M1 as) = first M1 (lscan as)
 
--- | Generic left scan
-genericLscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
-genericLscan = first to1 . lscan . from1
+unzip :: forall f a b. Functor f => f (a :* b) -> f a :* f b
+unzip ps = (fst <$> ps, snd <$> ps)
