@@ -20,13 +20,14 @@ source-repository head
 Library
   hs-Source-Dirs:      src
   Extensions:
-  Build-Depends:       base<5
-                     , ghc-prim
-                     , QuickCheck >= 2.7.3
-                     , keys
-                     , pointed
-                     , newtype-generics
+  Build-Depends:       QuickCheck >= 2.7.3
+                     , base<5
                      , circat
+                     , ghc-prim
+                     , keys
+                     , mtl >= 2.2.1
+                     , newtype-generics
+                     , pointed
 
 --                      , reification-rules
 
@@ -40,6 +41,7 @@ Library
                        ShapedTypes.Scan
                        ShapedTypes.ScanF
                        ShapedTypes.FFT
+                       ShapedTypes.Shift
                        ShapedTypes.Pair
                        ShapedTypes.Nat
                        ShapedTypes.Vec
@@ -47,6 +49,7 @@ Library
                        ShapedTypes.LPow
                        ShapedTypes.Fams
                        ShapedTypes.Orphans
+                       ShapedTypes.Add
   Other-Modules:
                        ShapedTypes.Types.Pair
                        ShapedTypes.Types.Vec
