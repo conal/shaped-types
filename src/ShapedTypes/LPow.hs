@@ -70,6 +70,7 @@ import GHC.Generics (Generic1(..),Par1(..),(:.:)(..))
 import Test.QuickCheck (Arbitrary(..),CoArbitrary(..))
 
 import Data.Key
+import Data.Pointed
 
 import Circat.Misc ((<~),showsUnary)
 
@@ -78,6 +79,7 @@ import ShapedTypes.Sized
 import ShapedTypes.Nat hiding (type (^))
 import ShapedTypes.Vec (Vec(..))
 import ShapedTypes.Scan
+import qualified ShapedTypes.ScanF as SF
 
 import ShapedTypes.Types.LPow
 
@@ -244,6 +246,14 @@ instance (Traversable (LPow n h), Keyed (LPow n h)) => TraversableWithKey (LPow 
   traverseWithKey f = traverse (uncurry f) . keyed
 -}
 
+instance Pointed (LPow h Z) where
+  point = L
+  {-# INLINE point #-}
+
+instance (Pointed h, Pointed (LPow h n)) => Pointed (LPow h (S n)) where
+  point = B . point . point
+  {-# INLINE point #-}
+
 {--------------------------------------------------------------------
     Other representations
 --------------------------------------------------------------------}
@@ -285,9 +295,18 @@ instance (Generic1 (LPow h n), LScan (Rep1 (LPow h n))) => LScan (LPow h n) wher
 instance LScan (LPow h Z) where
   lscan (L a) = (L mempty, a)
   {-# INLINE lscan #-}
-instance (LFScan h, LScan (LPow h n), Applicative (LPow h n))
+instance (LScan h, LScan (LPow h n), Applicative (LPow h n))
       => LScan (LPow h (S n)) where
-  lscan (B ts) = first B (lscanComp ts)
+  lscan (B ts) = first (B . unComp1) (lscan (Comp1 ts))
+  {-# INLINE lscan #-}
+
+-- TODO: Replace Scan by ScanF
+instance SF.LScan (LPow h Z) where
+  lscan (L a) = L mempty SF.:> a
+  {-# INLINE lscan #-}
+instance (SF.LScan h, Functor h, SF.LScan (LPow h n), Applicative (LPow h n)) =>
+         SF.LScan (LPow h (S n)) where
+  lscan (B ts) = SF.firstAnd1 (B . unComp1) (SF.lscan (Comp1 ts))
   {-# INLINE lscan #-}
 
 #endif
