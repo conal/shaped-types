@@ -38,7 +38,7 @@ import ShapedTypes.Nat
     Type and basic manipulation
 --------------------------------------------------------------------}
 
--- Top-down, depth-typed, perfect, binary, leaf trees
+-- Top-down, depth-typed, perfect, leaf trees
 data RPow :: (* -> *) -> Nat -> * -> * where
   L :: a -> RPow h Z a
   B :: h (RPow h n a) -> RPow h (S n) a
