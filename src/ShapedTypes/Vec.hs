@@ -193,6 +193,15 @@ instance Sized (Vec n) => Sized (Vec (S n)) where
 -- GHC more opportunity for compile-time simplification. Seems a fragile hack.
 -- Find robust ways to let GHC do more simplification.
 
+#if 0
+-- Experiment: use default lscan method. However, we'll get the quadratic version.
+
+instance                   LScan (Vec Z)
+instance LScan (Vec n) =>  LScan (Vec (S n))
+
+instance                   SF.LScan (Vec Z)
+instance SF.LScan (Vec n) =>  SF.LScan (Vec (S n))
+#else
 -- Generic lscan is terrible for Vec, so scan sequentially.
 instance (Functor (Vec n), Traversable (Vec n)) => LScan (Vec n) where
   lscan = lscanTraversable
@@ -204,3 +213,4 @@ instance (Functor (Vec n), Traversable (Vec n)) => SF.LScan (Vec n) where
   {-# INLINE lscan #-}
 
 -- Needs UndecidableInstances
+#endif
