@@ -51,6 +51,31 @@ type Adder' t = Bool :* t (Pair Bool) -> t Bool :* Bool
     One-bit adders
 --------------------------------------------------------------------}
 
+data PropGen = PropGen { pgProp :: Bool, pgGen :: Bool }
+
+instance HasRep PropGen where
+  type Rep PropGen = Bool :* Bool
+  repr (PropGen p g) = (p,g)
+  abst (p,g) = PropGen p g
+
+AbsTy(PropGen)
+
+-- MSB on left
+instance Monoid PropGen where
+  mempty = PropGen True False
+  PropGen pa ga `mappend` PropGen pb gb =
+    PropGen (pa && pb) ((ga && pb) || gb)
+  {-# INLINE mempty #-}
+  {-# INLINE mappend #-}
+
+xor :: Binop Bool
+xor = (/=)
+
+propGen :: Pair Bool -> PropGen
+propGen = abst . halfAdd
+-- propGen (a :# b) = PropGen (a `xor` b) (a && b)
+-- {-# INLINE propGen #-}
+
 halfAdd :: Pair Bool -> Bool :* Bool
 halfAdd (a :# b) = (a `xor` b,a && b)
 {-# INLINE halfAdd #-}
@@ -116,78 +141,18 @@ adderAccumL = accumL add1
     Scan-based
 --------------------------------------------------------------------}
 
--- | Generate and propagate carries
-data GenProp = GenProp { gpGen :: Bool, gpProp :: Bool }
-
-instance HasRep GenProp where
-  type Rep GenProp = Bool :* Bool
-  repr (GenProp g p) = (g,p)
-  abst (g,p) = GenProp g p
-
-AbsTy(GenProp)
-
--- MSB on left
-instance Monoid GenProp where
-  mempty = GenProp False True
-  GenProp gy py `mappend` GenProp gx px =
-    GenProp (gx || gy && px) (px && py)
-  -- {-# INLINE mempty #-}
-  -- {-# INLINE mappend #-}
-
-xor :: Binop Bool
-xor = (/=)
-
-genProp :: Pair Bool -> GenProp
-genProp (a :# b) = GenProp (a && b) (a `xor` b)
--- {-# INLINE genProp #-}
-
-gpCarry :: GenProp -> Bool -> Bool
-gpCarry (GenProp g p) cin = g || p && cin -- TODO: consolidate with mappend
--- {-# INLINE gpCarry #-}
+-- pgCarry :: GenProp -> Bool -> Bool
+-- pgCarry (GenProp g p) cin = g || p && cin -- TODO: consolidate with mappend
+-- -- {-# INLINE pgCarry #-}
 
 scanAdd :: (LScan t, Zip t) => Adder t
-scanAdd ps = (zipWith h gprs cs, co)
+scanAdd ps = (zipWith h pgs cs, co)
  where
-   gprs = genProp <$> ps
-   (cs,co) = gpGen <*$> lscan gprs
-   h (GenProp _ p) ci = p `xor` ci
+   pgs = propGen <$> ps
+   (cs,co) = pgGen <*$> lscan pgs
+   h (PropGen p _) ci = p `xor` ci
 -- {-# INLINE scanAdd #-}
 
--- Just for testing
-scanGPs :: LScan t => t (Pair Bool) -> t GenProp :* GenProp
-scanGPs ps = lscan (genProp <$> ps)
--- {-# INLINE scanGPs #-}
-
 scanAdd' :: (Zip t, LScan t) => Adder' t
-scanAdd' (ci0,ps) = (zipWith h gprs cs, co)
- where
-   gprs = genProp <$> ps
-   (cs,co) = flip gpCarry ci0 <*$> lscan gprs
-   h (GenProp _ p) ci = p `xor` ci
+scanAdd' (ci0,ps) = first (snd . unpack) $ scanAdd (Par1 (ci0 :# True) :*: ps)
 -- {-# INLINE scanAdd' #-}
-
--- TODO: perhaps define a variant of lscan that takes an initial and tweaks all
--- values accordingly.
-
--- scanAdd via scanAdd'
-scanAdd'' :: (Zip t, LScan t) => Adder t
-scanAdd'' = carryIn False scanAdd'
-
--- carryIn :: Bool -> Adder' t -> Adder t
-carryIn :: c -> (c :* a -> b) -> a -> b
-carryIn cin f = f . (cin,)
-
-cinGP :: Bool -> GenProp
-cinGP cin = GenProp cin False
-
-scanAdd''' :: (Zip t, LScan t) => Adder' t
-scanAdd''' (ci0,ps) = first (snd . unpack) $ scanAdd (Par1 (ci0 :# True) :*: ps)
--- {-# INLINE scanAdd''' #-}
-
-
--- -- scanAddQ :: (Zip t, LScan t) => Adder' t
--- scanAddQ
---   :: (LScan g, Zip g) =>
---      (Bool, g (Pair Bool)) -> ((Par1 Bool, g Bool), Bool)
--- scanAddQ (ci0,ps) = first unpack $ scanAdd (Par1 (ci0 :# True) :*: ps)
--- -- {-# INLINE scanAdd''' #-}
