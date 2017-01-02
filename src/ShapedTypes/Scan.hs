@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE EmptyCase           #-}
@@ -30,7 +31,7 @@
 ----------------------------------------------------------------------
 
 module ShapedTypes.Scan
-  ( LScanTy, LScan(..)
+  ( LScan(..)
   , lscanT, lscanTraversable
   , lsums, lproducts, lAlls, lAnys, lParities
   , multiples, powers, iota
@@ -50,17 +51,16 @@ import Data.Key
 import Data.Pointed
 
 import Circat.Misc ((:*),Parity(..)) -- , Unop
--- import ShapedTypes.Misc (mapl)
-
-type LScanTy f = forall a. Monoid a => f a -> f a :* a
+import ShapedTypes.Misc (absurdF)
 
 class Functor f => LScan f where
-  lscan :: LScanTy f
-  default lscan :: (Generic1 f, LScan (Rep1 f)) => LScanTy f
+  lscan :: forall a. Monoid a => f a -> f a :* a
+  default lscan :: (Generic1 f, LScan (Rep1 f), Monoid a) => f a -> f a :* a
   lscan = first to1 . lscan . from1
   -- Temporary hack to avoid newtype-like representation. Still needed?
   lscanDummy :: f a
   lscanDummy = undefined
+--   lscanWork, lscanDepth :: forall a. MappendStats a => Int
 
 -- TODO: Try removing lscanDummy and the comment and recompiling with reification
 
@@ -69,7 +69,7 @@ lscanT :: Traversable t => (b -> a -> b) -> b -> t a -> (t b,b)
 lscanT op e = swap . mapAccumL (\ b a -> (b `op` a,b)) e
 {-# INLINABLE lscanT #-}
 
-lscanTraversable :: Traversable t => LScanTy t
+lscanTraversable :: Traversable f => forall a. Monoid a => f a -> f a :* a
 lscanTraversable = lscanT mappend mempty
 {-# INLINABLE lscanTraversable #-}
 
@@ -116,30 +116,72 @@ iota :: (LScan f, Pointed f, Num a) => f a :* a
 iota = multiples 1
 
 {--------------------------------------------------------------------
+    Work and depth
+--------------------------------------------------------------------}
+
+-- class Monoid o => MappendStats o where
+--   mappendWork, mappendDepth :: Int
+--   mappendWork = 1
+--   mappendDepth = 1
+
+-- instance Num a => MappendStats (Sum     a)
+-- instance Num a => MappendStats (Product a)
+
+{--------------------------------------------------------------------
     Generic support
 --------------------------------------------------------------------}
 
 instance LScan V1 where
-  lscan = \ case
+  lscan = absurdF
+--   lscanWork = 0
+--   lscanDepth = 0
 
 instance LScan U1 where
   lscan U1 = (U1, mempty)
+--   lscanWork = 0
+--   lscanDepth = 0
 
 instance LScan (K1 i c) where
   lscan w@(K1 _) = (w, mempty)
+--   lscanWork = 0
+--   lscanDepth = 0
 
 instance LScan Par1 where
   lscan (Par1 a) = (Par1 mempty, a)
+--   lscanWork = 0
+--   lscanDepth = 0
+
+-- foo :: Int
+-- foo = lscanWork @Par1 @(Sum Int)
 
 instance (LScan f, LScan g) => LScan (f :+: g) where
   lscan (L1 fa) = first L1 (lscan fa)
   lscan (R1 ga) = first R1 (lscan ga)
+--   lscanWork, lscanDepth :: forall a. MappendStats a => Int
+--   lscanWork = max (lscanWork @f @a) (lscanWork @g @a)
+--   lscanDepth = max (lscanDepth @f @a) (lscanDepth @g @a)
+
+-- GHC objects:
+-- 
+--     • Could not deduce (MappendStats a0)
+--       from the context: (LScan f, LScan g)
+--         bound by the instance declaration
+--         at /Users/conal/Haskell/shaped-types/src/ShapedTypes/Scan.hs:157:10-46
+--       or from: MappendStats a
+--         bound by the type signature for:
+--                    lscanWork :: MappendStats a => Int
+--         at /Users/conal/Haskell/shaped-types/src/ShapedTypes/Scan.hs:160:28-58
+--       The type variable ‘a0’ is ambiguous
+--
+-- I wonder if ScopedTypeVariables is failing here
 
 instance (LScan f, LScan g) => LScan (f :*: g) where
   lscan (fa :*: ga) = (fa' :*: ((fx <>) <$> ga'), fx <> gx)
    where
      (fa', fx) = lscan fa
      (ga', gx) = lscan ga
+--   lscanWork :: 
+--   lscanWork = lscanWork @f + lscanWork @g + mappendWork 
 
 -- Alternatively,
 
