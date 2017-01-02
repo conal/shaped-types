@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP           #-}
 {-# LANGUAGE TypeFamilies  #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE EmptyCase #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
@@ -44,10 +46,6 @@ import Circat.Misc ((:*))
 (h <-- f) g = h . g . f
 {-# INLINE (<--) #-}
 
--- | Operate inside a Generic1
-inGeneric1 :: (Generic1 f, Generic1 g) => (Rep1 f a -> Rep1 g b) -> (f a -> g b)
-inGeneric1 = to1 <-- from1
-
 #if __GLASGOW_HASKELL__ < 800
 
 {--------------------------------------------------------------------
@@ -66,6 +64,14 @@ instance (Applicative g, Applicative f) => Applicative (g :.: f) where
 
 #endif
 
+{--------------------------------------------------------------------
+    Misc Generics operations
+--------------------------------------------------------------------}
+
+-- | Operate inside a Generic1
+inGeneric1 :: (Generic1 f, Generic1 g) => (Rep1 f a -> Rep1 g b) -> (f a -> g b)
+inGeneric1 = to1 <-- from1
+
 -- | Apply a unary function within the 'Comp1' constructor.
 inComp :: (g (f a) -> g' (f' a')) -> ((g :.: f) a -> (g' :.: f') a')
 inComp = Comp1 <-- unComp1
@@ -74,6 +80,9 @@ inComp = Comp1 <-- unComp1
 inComp2 :: (  g (f a)   -> g' (f' a')     -> g'' (f'' a''))
         -> ((g :.: f) a -> (g' :.: f') a' -> (g'' :.: f'') a'')
 inComp2 = inComp <-- unComp1
+
+absurdF :: V1 a -> b
+absurdF = \ case
 
 {--------------------------------------------------------------------
     Newtype
